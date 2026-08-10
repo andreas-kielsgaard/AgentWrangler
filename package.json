@@ -5,11 +5,13 @@
   "type": "module",
   "description": "Workspace orchestration for independent Agent Wrangler runtime packages",
   "workspaces": [
+    "cli",
     "runtimes/*",
     "shared/packages/*",
     "shared/cross-runtime"
   ],
   "scripts": {
+    "aw": "node cli/src/cli.mjs",
     "start": "launch-all.bat",
     "start:authority": "npm start --workspace @agent-wrangler/authority-server",
     "start:ranch": "npm start --workspace @agent-wrangler/ranch",
@@ -21,10 +23,11 @@
     "build": "npm run build --workspaces --if-present",
     "smoke": "npm run test:scaffold --workspace @agent-wrangler/cross-runtime-tests",
     "test:slice": "npm run test:direct-prompt --workspace @agent-wrangler/cross-runtime-tests",
+    "test:cli": "npm test --workspace @agent-wrangler/cli",
     "test:runtimes": "npm test --workspace @agent-wrangler/authority-server && npm test --workspace @agent-wrangler/ranch && npm test --workspace @agent-wrangler/gallery && npm test --workspace @agent-wrangler/router && npm test --workspace @agent-wrangler/engine && npm test --workspace @agent-wrangler/farm && npm test --workspace @agent-wrangler/execution-node",
     "test:shared": "npm test --workspace @agent-wrangler/http-transport && npm test --workspace @agent-wrangler/runtime-diagnostics && npm test --workspace @agent-wrangler/json-store && npm test --workspace @agent-wrangler/contracts && npm test --workspace @agent-wrangler/test-support",
     "test:cross-runtime": "npm test --workspace @agent-wrangler/cross-runtime-tests",
-    "test": "npm run test:shared && npm run test:runtimes && npm run test:cross-runtime",
+    "test": "npm run test:shared && npm run test:cli && npm run test:runtimes && npm run test:cross-runtime",
     "verify": "npm test"
   },
   "engines": {

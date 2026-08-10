@@ -1,4 +1,5 @@
 import { runtimeDiagnosticsHttp } from "@agent-wrangler/contracts/runtime-diagnostics";
+import { runtimeCapabilitiesHttp } from "@agent-wrangler/contracts/runtime-capabilities";
 import { fetchJson, sendJson, startHttpServer } from "@agent-wrangler/http-transport";
 
 const DIAGNOSTIC_LABEL = "disposable-scaffold-diagnostic";
@@ -27,7 +28,7 @@ export async function probeRuntime(target, timeoutMs = 1_500) {
   }
 }
 
-export function startRuntime({ id, name, port, handleRoute }) {
+export function startRuntime({ id, name, port, capabilities = { operations: [], dependencies: [] }, handleRoute }) {
   const host = process.env.RUNTIME_HOST ?? "127.0.0.1";
   const startedAt = new Date().toISOString();
   const runtime = { id, name };
@@ -42,6 +43,11 @@ export function startRuntime({ id, name, port, handleRoute }) {
       }
       if (request.method === "GET" && path === runtimeDiagnosticsHttp.paths.health) {
         sendJson(response, 200, diagnosticEnvelope({ runtime, status: "ok" }));
+        return;
+      }
+      if (request.method === "GET" && path === runtimeCapabilitiesHttp.paths.capabilities) {
+        const advertised = typeof capabilities === "function" ? await capabilities() : capabilities;
+        sendJson(response, 200, diagnosticEnvelope({ runtime, capabilities: advertised }));
         return;
       }
       if (handleRoute && (await handleRoute({ path, request, response, runtime }))) return;

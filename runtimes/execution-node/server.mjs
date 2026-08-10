@@ -177,6 +177,15 @@ startRuntime({
   id: "execution-node",
   name: "Codex CLI Execution Node",
   port,
+  capabilities: {
+    operations: [
+      "runtime.identity",
+      "runtime.health",
+      "codex-cli.observe",
+      "codex-cli.execute-prompt",
+    ],
+    dependencies: [],
+  },
   async handleRoute({ path, request, response }) {
     try {
       if (request.method === "GET" && path === executionNodeHttp.paths.capabilities) {

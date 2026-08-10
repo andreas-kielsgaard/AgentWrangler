@@ -1,6 +1,6 @@
 # Wrangle Gallery capabilities
 
-Gallery currently demonstrates only independent start, identity, and health.
+Gallery currently demonstrates only independent start, identity, health, and machine-readable capability advertisement.
 
 Implementation: `server.mjs`. Happy-flow test: `tests/runtime-management.test.mjs`.
 

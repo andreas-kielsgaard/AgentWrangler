@@ -7,4 +7,5 @@ startRuntime({
   id: "gallery",
   name: "Wrangle Gallery",
   port,
+  capabilities: { operations: ["runtime.identity", "runtime.health"], dependencies: [] },
 });

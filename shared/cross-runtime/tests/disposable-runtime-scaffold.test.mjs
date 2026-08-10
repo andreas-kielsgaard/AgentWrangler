@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { join } from "node:path";
 import { test } from "node:test";
+import { runtimeCapabilitiesHttp } from "@agent-wrangler/contracts/runtime-capabilities";
 import {
   freePorts,
   makeTemporaryDirectory,
@@ -42,6 +43,12 @@ test("all seven runtime packages start independently and Farm observes each one"
     const identities = await Promise.all(ids.map((id) => waitForJson(`http://127.0.0.1:${ports[id]}/identity`)));
     assert.equal(new Set(identities.map((identity) => identity.processId)).size, 7);
     for (const id of ids) assert.equal((await request(`http://127.0.0.1:${ports[id]}/health`)).body.status, "ok");
+    for (const id of ids) {
+      assert.equal(
+        (await request(`http://127.0.0.1:${ports[id]}${runtimeCapabilitiesHttp.paths.capabilities}`)).statusCode,
+        200,
+      );
+    }
 
     const status = await request(`http://127.0.0.1:${ports.farm}/scaffold/status`);
     assert.deepEqual(status.body.runtimes.map((entry) => entry.target.id), [

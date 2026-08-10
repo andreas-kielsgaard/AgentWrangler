@@ -4,6 +4,7 @@ import {
   authorityRouterConfigurationHttp,
   createAuthorityRouterConfiguration,
 } from "@agent-wrangler/contracts/authority-router-configuration";
+import { runtimeLinksHttp } from "@agent-wrangler/contracts/runtime-links";
 import {
   freePort,
   request,
@@ -70,5 +71,31 @@ test("Router stays healthy and reports an unavailable Durable Data Server for pr
     assert.equal(result.body.error.code, "durable_data_server_unavailable");
   } finally {
     await stopProcess(router.child);
+  }
+});
+
+test("Router explicitly configures, tests, and clears its session-local Durable Data link", async () => {
+  const server = await startTestServer(({ method, path }) => method === "GET" && path === "/authority"
+    ? { body: { server: { id: "linked-server" } } }
+    : { statusCode: 404, body: {} });
+  const router = await startRouter({ AUTHORITY_URL: "" });
+  const linkPath = runtimeLinksHttp.paths.link("durable-data");
+  try {
+    assert.equal((await request(`${router.baseUrl}${linkPath}`)).body.link, null);
+
+    const configured = await request(`${router.baseUrl}${linkPath}`, {
+      method: "PUT",
+      body: { baseUrl: server.baseUrl },
+    });
+    assert.equal(configured.body.link.serverId, "linked-server");
+    assert.equal((await request(`${router.baseUrl}${runtimeLinksHttp.paths.test("durable-data")}`, {
+      method: "POST",
+      body: {},
+    })).body.test.reachable, true);
+
+    assert.equal((await request(`${router.baseUrl}${linkPath}`, { method: "DELETE" })).body.link, null);
+  } finally {
+    await stopProcess(router.child);
+    await server.close();
   }
 });

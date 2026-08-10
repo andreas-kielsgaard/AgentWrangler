@@ -110,6 +110,19 @@ startRuntime({
   id: "authority-server",
   name: "Durable Data Server (authority-server working name)",
   port,
+  capabilities: {
+    operations: [
+      "runtime.identity",
+      "runtime.health",
+      "execution-node-connections.list",
+      "execution-node-connections.create",
+      "execution-node-connections.read",
+      "execution-node-connections.update",
+      "execution-node-connections.delete",
+      "router-connection-configuration.read",
+    ],
+    dependencies: [],
+  },
   async handleRoute({ path, request, response }) {
     if (request.method === "GET" && path === authorityIdentityHttp.paths.identity) {
       sendJson(response, 200, envelope({ server: { id: serverId } }));

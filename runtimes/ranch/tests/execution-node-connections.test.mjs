@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { authorityConnectionsHttp } from "@agent-wrangler/contracts/authority-connections";
 import { ranchConnectionsHttp } from "@agent-wrangler/contracts/ranch-connections";
+import { runtimeLinksHttp } from "@agent-wrangler/contracts/runtime-links";
 import {
   freePort,
   request,
@@ -47,6 +48,7 @@ test("Ranch forwards management and observes the current Execution Node without 
   const ranch = await startRanch({ AUTHORITY_URL: server.baseUrl });
   try {
     assert.equal((await request(`${ranch.baseUrl}/development/execution-node-connections`)).body.connections[0].id, "node");
+    assert.equal((await request(`${ranch.baseUrl}/development/execution-node-connections/node`)).body.connection.id, "node");
     assert.equal((await request(`${ranch.baseUrl}/development/execution-node-connections`, {
       method: "POST",
       body: { id: "node", name: "Node", baseUrl: node.baseUrl },
@@ -89,6 +91,38 @@ test("Ranch rejects a response from an unexpected Durable Data Server identity",
     assert.equal(result.statusCode, 503);
     assert.match(result.body.error.message, /identity does not match/);
     assert.equal((await request(`${ranch.baseUrl}/health`)).statusCode, 200);
+  } finally {
+    await stopProcess(ranch.child);
+    await server.close();
+  }
+});
+
+test("Ranch explicitly configures, tests, and clears its session-local Durable Data link", async () => {
+  const server = await startTestServer(({ method, path }) => {
+    if (method === "GET" && path === "/authority") return { body: { server: { id: "linked-server" } } };
+    if (method === "GET" && path === authorityConnectionsHttp.paths.collection) {
+      return { body: { serverId: "linked-server", connections: [] } };
+    }
+    return { statusCode: 404, body: {} };
+  });
+  const ranch = await startRanch({ AUTHORITY_URL: "" });
+  const linkPath = runtimeLinksHttp.paths.link("durable-data");
+  try {
+    assert.equal((await request(`${ranch.baseUrl}${linkPath}`)).body.link, null);
+    assert.equal((await request(`${ranch.baseUrl}${ranchConnectionsHttp.paths.collection}`)).statusCode, 409);
+
+    const configured = await request(`${ranch.baseUrl}${linkPath}`, {
+      method: "PUT",
+      body: { baseUrl: server.baseUrl },
+    });
+    assert.equal(configured.body.link.serverId, "linked-server");
+    assert.equal((await request(`${ranch.baseUrl}${ranchConnectionsHttp.paths.collection}`)).statusCode, 200);
+    assert.equal((await request(`${ranch.baseUrl}${runtimeLinksHttp.paths.test("durable-data")}`, {
+      method: "POST",
+      body: {},
+    })).body.test.reachable, true);
+
+    assert.equal((await request(`${ranch.baseUrl}${linkPath}`, { method: "DELETE" })).body.link, null);
   } finally {
     await stopProcess(ranch.child);
     await server.close();

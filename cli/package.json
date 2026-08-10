@@ -1,0 +1,22 @@
+{
+  "name": "@agent-wrangler/cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "aw": "src/cli.mjs"
+  },
+  "scripts": {
+    "build": "node --check src/cli.mjs && node --check src/configuration.mjs",
+    "start": "node src/cli.mjs",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@agent-wrangler/contracts": "0.0.0",
+    "@agent-wrangler/http-transport": "0.0.0",
+    "@agent-wrangler/json-store": "0.0.0"
+  },
+  "devDependencies": {
+    "@agent-wrangler/test-support": "0.0.0"
+  }
+}

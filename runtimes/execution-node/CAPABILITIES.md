@@ -3,6 +3,7 @@
 Execution Node currently demonstrates:
 
 - independent start, identity, health, and a node-owned working directory;
+- machine-readable capability advertisement;
 - bounded non-agent Codex CLI availability observation;
 - one request-response prompt invocation with fixed node-owned arguments, stdin transport, `shell: false`, a controlled working directory, and timeout;
 - normalized agent output and explicit provider-reported-only activity evidence.

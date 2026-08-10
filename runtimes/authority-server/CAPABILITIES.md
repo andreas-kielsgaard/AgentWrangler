@@ -3,6 +3,7 @@
 `authority-server` is a temporary package and product name. The runtime currently demonstrates:
 
 - independent start, identity, and health;
+- machine-readable capability advertisement;
 - one stable configured server identifier;
 - durable JSON storage for one execution-node connection collection;
 - list, create, update, delete, and current-connection lookup.

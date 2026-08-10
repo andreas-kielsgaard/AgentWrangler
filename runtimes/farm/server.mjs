@@ -62,6 +62,16 @@ startRuntime({
   id: "farm",
   name: "Wrangler Farm",
   port,
+  capabilities: {
+    operations: [
+      "runtime.identity",
+      "runtime.health",
+      "runtime-status.present",
+      "execution-node-connections.present",
+      "prompt-results.present",
+    ],
+    dependencies: [],
+  },
   async handleRoute({ path, request, response, runtime }) {
     if (path === "/scaffold/status") {
       const inspected = await Promise.all(targets.map(inspectTarget));

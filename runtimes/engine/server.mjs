@@ -7,4 +7,5 @@ startRuntime({
   id: "engine",
   name: "Wrangle Engine",
   port,
+  capabilities: { operations: ["runtime.identity", "runtime.health"], dependencies: [] },
 });

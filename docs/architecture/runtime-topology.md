@@ -22,6 +22,8 @@ Farm observes identity and health for every runtime independently. Gallery and E
 
 Each package starts, exposes identity and health, and runs local tests without requiring peer startup. A missing Durable Data Server leaves Ranch and Router running but makes their dependent operation unavailable. Runtime packages do not import sibling source or access sibling private storage.
 
+Startup does not establish inter-runtime links. Ranch and Router expose predictable local addresses, advertise their capabilities, and accept an explicit session-local Durable Data Server link after startup. The repository CLI is one replaceable client of those interfaces.
+
 ## Deliberately absent
 
 The current topology has no credentials, grants, authority decisions, Gallery discovery, Engine extensions, multiple data servers, cache, retry, publication, acknowledgement, replication, or offline continuation.

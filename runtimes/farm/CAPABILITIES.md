@@ -3,6 +3,7 @@
 Farm is a small presentation application. It currently demonstrates:
 
 - independent start, identity, health, and browser asset serving;
+- machine-readable capability advertisement;
 - independent identity and health observation for the other six runtimes;
 - Farm-local presentation adapters that relay connection actions to Ranch and prompts to Router;
 - browser presentation of runtime status, connections, node observations, and prompt results.
