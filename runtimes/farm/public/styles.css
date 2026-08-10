@@ -1,0 +1,286 @@
+:root {
+  color-scheme: dark;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #0c1210;
+  color: #eef5ef;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 280px;
+  background:
+    radial-gradient(circle at top left, rgba(78, 136, 94, 0.22), transparent 36rem),
+    #0c1210;
+}
+
+main {
+  width: min(72rem, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 4rem 0 2rem;
+}
+
+header {
+  max-width: 48rem;
+  margin-bottom: 4rem;
+}
+
+section + section {
+  margin-top: 4rem;
+}
+
+.panel {
+  border: 1px solid #29382e;
+  border-radius: 1.25rem;
+  padding: 1.25rem;
+  background: rgba(18, 27, 21, 0.68);
+}
+
+h1,
+h2,
+h3,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  margin-bottom: 1rem;
+  font-size: clamp(2.75rem, 8vw, 5.5rem);
+  line-height: 0.95;
+  letter-spacing: -0.055em;
+}
+
+h2,
+h3 {
+  margin-bottom: 0;
+}
+
+header > p:last-child,
+footer,
+#summary {
+  color: #a9b7ad;
+  line-height: 1.6;
+}
+
+.eyebrow,
+.runtime-id {
+  margin-bottom: 0.6rem;
+  color: #77d38f;
+  font-size: 0.75rem;
+  font-weight: 750;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.section-heading,
+.card-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+button {
+  border: 1px solid #43674d;
+  border-radius: 999px;
+  padding: 0.7rem 1rem;
+  background: #152019;
+  color: inherit;
+  cursor: pointer;
+}
+
+button:hover,
+button:focus-visible {
+  border-color: #77d38f;
+}
+
+button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+input,
+textarea {
+  width: 100%;
+  border: 1px solid #43674d;
+  border-radius: 0.65rem;
+  padding: 0.7rem;
+  background: #0f1712;
+  color: inherit;
+  font: inherit;
+}
+
+input:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #77d38f;
+  outline-offset: 2px;
+}
+
+label {
+  display: grid;
+  gap: 0.45rem;
+  color: #c5d7c9;
+}
+
+.connection-form {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr auto;
+  align-items: end;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.connection-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.connection-card {
+  min-width: 0;
+  border-top: 1px solid #29382e;
+  padding-top: 1.25rem;
+}
+
+.connection-address {
+  color: #a9b7ad;
+  overflow-wrap: anywhere;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.danger {
+  border-color: #714040;
+}
+
+.prompt-form {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.prompt-form button {
+  justify-self: start;
+}
+
+.connection-result {
+  margin-top: 1rem;
+  color: #a9b7ad;
+}
+
+.success {
+  color: #90e8a7;
+}
+
+.error {
+  color: #ffb0a8;
+}
+
+.technical-details {
+  margin-top: 0.75rem;
+}
+
+pre {
+  max-height: 24rem;
+  overflow: auto;
+  border-radius: 0.7rem;
+  padding: 0.8rem;
+  background: #09100c;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.runtime-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
+  gap: 1rem;
+}
+
+.runtime-card {
+  min-width: 0;
+  border: 1px solid #29382e;
+  border-radius: 1rem;
+  padding: 1.25rem;
+  background: rgba(18, 27, 21, 0.86);
+}
+
+.status {
+  flex: none;
+  border-radius: 999px;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.is-up {
+  background: #193d26;
+  color: #90e8a7;
+}
+
+.is-down {
+  background: #4b2525;
+  color: #ffb0a8;
+}
+
+dl {
+  margin-bottom: 0;
+}
+
+dl div {
+  display: grid;
+  grid-template-columns: 7rem minmax(0, 1fr);
+  gap: 0.75rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid #253129;
+}
+
+dt {
+  color: #849187;
+}
+
+dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+code {
+  color: #c5d7c9;
+}
+
+footer {
+  max-width: 48rem;
+  margin-top: 3rem;
+  border-top: 1px solid #29382e;
+  padding-top: 1.5rem;
+}
+
+@media (max-width: 32rem) {
+  main {
+    padding-top: 2rem;
+  }
+
+  .section-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  button {
+    width: 100%;
+  }
+
+  .connection-form {
+    grid-template-columns: 1fr;
+  }
+
+  .prompt-form button {
+    justify-self: stretch;
+  }
+}

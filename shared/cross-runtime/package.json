@@ -1,0 +1,21 @@
+{
+  "name": "@agent-wrangler/cross-runtime-tests",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "test:scaffold": "node --test tests/disposable-runtime-scaffold.test.mjs",
+    "test:direct-prompt": "node --test tests/direct-codex-prompt-path.test.mjs"
+  },
+  "devDependencies": {
+    "@agent-wrangler/authority-server": "0.0.0",
+    "@agent-wrangler/engine": "0.0.0",
+    "@agent-wrangler/execution-node": "0.0.0",
+    "@agent-wrangler/farm": "0.0.0",
+    "@agent-wrangler/gallery": "0.0.0",
+    "@agent-wrangler/ranch": "0.0.0",
+    "@agent-wrangler/router": "0.0.0",
+    "@agent-wrangler/test-support": "0.0.0"
+  }
+}

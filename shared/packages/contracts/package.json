@@ -1,0 +1,19 @@
+{
+  "name": "@agent-wrangler/contracts",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./runtime-diagnostics": "./src/runtime-diagnostics.mjs",
+    "./authority-identity": "./src/authority-identity.mjs",
+    "./authority-connections": "./src/authority-connections.mjs",
+    "./authority-router-configuration": "./src/authority-router-configuration.mjs",
+    "./ranch-connections": "./src/ranch-connections.mjs",
+    "./router-prompts": "./src/router-prompts.mjs",
+    "./execution-node": "./src/execution-node.mjs"
+  },
+  "scripts": {
+    "build": "node --check src/runtime-diagnostics.mjs && node --check src/authority-identity.mjs && node --check src/authority-connections.mjs && node --check src/authority-router-configuration.mjs && node --check src/ranch-connections.mjs && node --check src/router-prompts.mjs && node --check src/execution-node.mjs",
+    "test": "node --test tests/*.test.mjs"
+  }
+}

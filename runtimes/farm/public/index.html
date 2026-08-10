@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Wrangler Farm — Development Slice</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">Temporary development surface</p>
+        <h1>Wrangler Farm</h1>
+        <p>
+          Configure a local execution-node connection, test observed health and Codex CLI capabilities,
+          and send one direct prompt through Router. This slice has no Gallery authorization, Wrangle,
+          Agent Session, extension, or fallback semantics.
+        </p>
+      </header>
+
+      <section aria-labelledby="connection-heading" class="panel">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Server-owned configuration managed through Ranch</p>
+            <h2 id="connection-heading">Execution-node connections</h2>
+          </div>
+          <button id="refresh-connections" type="button">Refresh connections</button>
+        </div>
+        <form id="connection-form" class="connection-form">
+          <label>
+            Name
+            <input name="name" required maxlength="100" value="Local Codex CLI" />
+          </label>
+          <label>
+            Loopback node URL
+            <input name="baseUrl" type="url" required value="http://127.0.0.1:4110" />
+          </label>
+          <button type="submit">Add connection</button>
+        </form>
+        <p id="connection-status" role="status" aria-live="polite"></p>
+        <div id="connections" class="connection-list"></div>
+      </section>
+
+      <section aria-labelledby="runtime-heading">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Seven independent processes</p>
+            <h2 id="runtime-heading">Runtime status</h2>
+          </div>
+          <button id="refresh" type="button">Refresh runtimes</button>
+        </div>
+        <p id="summary" role="status" aria-live="polite">Checking runtimes…</p>
+        <div id="runtime-grid" class="runtime-grid"></div>
+      </section>
+
+      <footer>
+        Seven independent runtimes remain visible through temporary diagnostics; those diagnostics are not product contracts.
+        Endpoints, JSON shapes, file paths, ports, and the Node.js implementation are temporary.
+        Provider-reported file or tool activity is not authoritative operating-system evidence.
+      </footer>
+    </main>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
