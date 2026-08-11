@@ -106,12 +106,23 @@ test("CLI grammar is discoverable and rejects removed legacy commands", async ()
   const configurationPath = join(directory, "targets.json");
   try {
     assert.match((await runCli(["--help"], configurationPath)).stdout, /Usage: aw <noun> <verb>/);
-    assert.match((await runCli(["node", "--help"], configurationPath)).stdout, /aw node add --name/);
+    assert.match((await runCli(["node", "--help"], configurationPath)).stdout, /add \[options\]\s+Register a connection/);
     assert.match((await runCli(["node", "add", "--help"], configurationPath)).stdout, /aw node add --name/);
+    const runtimeHelp = (await runCli(["runtime", "--help"], configurationPath)).stdout;
+    assert.match(runtimeHelp, /launch <NAME>\s+Start one runtime/);
+    assert.match(runtimeHelp, /ranch, gallery, router, engine, farm, durable-data, execution-node/);
+    assert.doesNotMatch(runtimeHelp, /<all\|runtime>/);
+    const launchHelp = (await runCli(["runtime", "launch", "--help"], configurationPath)).stdout;
+    assert.match(launchHelp, /aw runtime launch ranch/);
+    assert.doesNotMatch(launchHelp, /target set/);
     assert.equal((await runCli(["--version"], configurationPath)).stdout.trim(), "0.0.0");
     await assert.rejects(runCli(["nodes", "list"], configurationPath), (error) => {
       assert.notEqual(error.code, 0);
       assert.match(error.stderr, /Unknown noun 'nodes'/);
+      return true;
+    });
+    await assert.rejects(runCli(["runtime", "launch", "runtime"], configurationPath), (error) => {
+      assert.match(error.stderr, /Choose one of: ranch, gallery, router, engine, farm, durable-data, execution-node/);
       return true;
     });
   } finally {

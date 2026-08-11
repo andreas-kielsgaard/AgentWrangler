@@ -34,7 +34,7 @@ export function normalizeTargetUrl(raw) {
 
 export function requireRuntime(name) {
   const definition = runtimeDefinitions[name];
-  if (!definition) throw new Error(`Unknown runtime '${name}'.`);
+  if (!definition) throw new Error(`Unknown runtime '${name}'. Choose one of: ${Object.keys(runtimeDefinitions).join(", ")}.`);
   return definition;
 }
 
