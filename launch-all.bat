@@ -27,15 +27,16 @@ wt.exe -M -w new ^
   ; split-pane -V -s .6 --title "Durable Data" --suppressApplicationTitle -d "%PROJECT_ROOT%" cmd /k "npm start --workspace @agent-wrangler/authority-server" ^
   ; move-focus first ^
   ; split-pane -H -s .33 --title "Execution Node" --suppressApplicationTitle -d "%PROJECT_ROOT%" cmd /k "npm start --workspace @agent-wrangler/execution-node" ^
-  ; move-focus up ^
-  ; move-focus right ^
+  ; move-focus first ^
+  ; move-focus nextInOrder ^
   ; split-pane -V -s .5 --title "Router" --suppressApplicationTitle -d "%PROJECT_ROOT%" cmd /k "npm start --workspace @agent-wrangler/router" ^
   ; split-pane -H -s .67 --title "Engine" --suppressApplicationTitle -d "%PROJECT_ROOT%" cmd /k "npm start --workspace @agent-wrangler/engine" ^
   ; split-pane -H -s .5 --title "Farm" --suppressApplicationTitle -d "%PROJECT_ROOT%" cmd /k "npm start --workspace @agent-wrangler/farm" ^
   ; move-focus first ^
-  ; move-focus right ^
+  ; move-focus nextInOrder ^
   ; split-pane -H -s .67 --title "Ranch" --suppressApplicationTitle -d "%PROJECT_ROOT%" cmd /k "npm start --workspace @agent-wrangler/ranch" ^
-  ; split-pane -H -s .5 --title "Gallery" --suppressApplicationTitle -d "%PROJECT_ROOT%" cmd /k "npm start --workspace @agent-wrangler/gallery"
+  ; split-pane -H -s .5 --title "Gallery" --suppressApplicationTitle -d "%PROJECT_ROOT%" cmd /k "npm start --workspace @agent-wrangler/gallery" ^
+  ; move-focus first
 
 echo Opened a 40/60 layout with CLI and Execution Node on the left and six runtime panes on the right.
 echo No inter-runtime links were configured.
