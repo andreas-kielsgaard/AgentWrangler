@@ -21,22 +21,23 @@ if errorlevel 1 (
   exit /b 1
 )
 
-rem Build one maximized window with a seven-runtime grid and a full-width command pane.
+rem Build a 40/60 window: CLI and Execution Node on the left, six runtimes on the right.
 wt.exe -M -w new ^
-  new-tab --title "Durable Data" --suppressApplicationTitle -d "%PROJECT_ROOT%" cmd /k "npm start --workspace @agent-wrangler/authority-server" ^
-  ; split-pane -H -s .22 --title "Agent Wrangler CLI" --suppressApplicationTitle -d "%PROJECT_ROOT%" ^
-  ; move-focus up ^
-  ; split-pane -V -s .67 --title "Ranch" --suppressApplicationTitle -d "%PROJECT_ROOT%" cmd /k "npm start --workspace @agent-wrangler/ranch" ^
-  ; split-pane -V -s .5 --title "Router" --suppressApplicationTitle -d "%PROJECT_ROOT%" cmd /k "npm start --workspace @agent-wrangler/router" ^
+  new-tab --title "Agent Wrangler CLI" --suppressApplicationTitle -d "%PROJECT_ROOT%" ^
+  ; split-pane -V -s .6 --title "Durable Data" --suppressApplicationTitle -d "%PROJECT_ROOT%" cmd /k "npm start --workspace @agent-wrangler/authority-server" ^
+  ; move-focus left ^
   ; split-pane -H -s .5 --title "Execution Node" --suppressApplicationTitle -d "%PROJECT_ROOT%" cmd /k "npm start --workspace @agent-wrangler/execution-node" ^
-  ; move-focus first ^
-  ; split-pane -H -s .67 --title "Gallery" --suppressApplicationTitle -d "%PROJECT_ROOT%" cmd /k "npm start --workspace @agent-wrangler/gallery" ^
+  ; move-focus up ^
+  ; move-focus right ^
+  ; split-pane -V -s .5 --title "Router" --suppressApplicationTitle -d "%PROJECT_ROOT%" cmd /k "npm start --workspace @agent-wrangler/router" ^
+  ; split-pane -H -s .67 --title "Engine" --suppressApplicationTitle -d "%PROJECT_ROOT%" cmd /k "npm start --workspace @agent-wrangler/engine" ^
   ; split-pane -H -s .5 --title "Farm" --suppressApplicationTitle -d "%PROJECT_ROOT%" cmd /k "npm start --workspace @agent-wrangler/farm" ^
   ; move-focus first ^
   ; move-focus right ^
-  ; split-pane -H -s .5 --title "Engine" --suppressApplicationTitle -d "%PROJECT_ROOT%" cmd /k "npm start --workspace @agent-wrangler/engine"
+  ; split-pane -H -s .67 --title "Ranch" --suppressApplicationTitle -d "%PROJECT_ROOT%" cmd /k "npm start --workspace @agent-wrangler/ranch" ^
+  ; split-pane -H -s .5 --title "Gallery" --suppressApplicationTitle -d "%PROJECT_ROOT%" cmd /k "npm start --workspace @agent-wrangler/gallery"
 
-echo Opened all seven runtimes plus a full-width command pane in one maximized Windows Terminal window.
+echo Opened a 40/60 layout with CLI and Execution Node on the left and six runtime panes on the right.
 echo No inter-runtime links were configured.
 echo Wrangler Farm will be available at http://127.0.0.1:4105
 endlocal
