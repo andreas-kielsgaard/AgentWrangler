@@ -3,7 +3,7 @@
 `authority-server` is a temporary package and product name. The runtime currently demonstrates:
 
 - terminal-visible request and connection-write activity;
-- a durable directory for Ranch, Router, and Gallery endpoint definitions;
+- a durable directory for Ranch, Router, Gallery, and Engine endpoint definitions;
 - independent start, identity, and health;
 - machine-readable capability advertisement;
 - one stable configured server identifier;

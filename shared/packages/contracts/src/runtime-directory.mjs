@@ -5,4 +5,4 @@ export const runtimeDirectoryHttp = Object.freeze({
   }),
 });
 
-export const directoryRuntimeIds = Object.freeze(["ranch", "router", "gallery"]);
+export const directoryRuntimeIds = Object.freeze(["ranch", "router", "gallery", "engine"]);

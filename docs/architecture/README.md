@@ -6,6 +6,7 @@ Current references:
 
 - [Core concepts](core-concepts.md)
 - [Runtime topology](runtime-topology.md)
+- [Connection scenario laboratory](connection-scenario-laboratory.md)
 - [Durable data ownership](authority-realms.md)
 - [Temporary contract map](../contracts/README.md)
 - [Codex CLI execution-node outcome](../slices/0001-codex-cli-execution-node.md)

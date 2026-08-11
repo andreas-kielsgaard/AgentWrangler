@@ -4,6 +4,8 @@ Agent Wrangler is currently a capability laboratory for independently replaceabl
 
 The repository contains seven independently startable packages: Ranch, Gallery, Router, Engine, Farm, Execution Node, and `authority-server`. The last package is a temporary implementation name for the Durable Data Server; no final product name is confirmed.
 
+`tools/monitoring-control-surface` is a separate capability-laboratory application. It scans the exploratory runtimes, inspects their advertised interfaces through the CLI, and exercises explicit Runtime Operator and Collection Administrator scenarios. Start it with `npm run start:surface`, then open `http://127.0.0.1:4120`.
+
 The demonstrated flow is:
 
 ```text

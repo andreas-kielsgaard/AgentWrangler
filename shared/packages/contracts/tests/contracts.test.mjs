@@ -16,6 +16,6 @@ test("declared diagnostics and bounded Router configuration match the demonstrat
   assert.equal(validateAuthorityRouterConfiguration(configuration, "server"), null);
   assert.deepEqual(Object.keys(configuration.connection).sort(), ["baseUrl", "enabled", "id"]);
   assert.match(validateAuthorityRouterConfiguration(configuration, "other"), /serverId/);
-  assert.deepEqual(directoryRuntimeIds, ["ranch", "router", "gallery"]);
+  assert.deepEqual(directoryRuntimeIds, ["ranch", "router", "gallery", "engine"]);
   assert.equal(runtimeDirectoryHttp.paths.runtime("ranch"), "/durable/runtime-directory/ranch");
 });

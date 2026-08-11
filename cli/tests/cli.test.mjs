@@ -38,7 +38,22 @@ test("CLI targets a runtime and reports its status and advertised capabilities",
     assert.match((await runCli(["ranch", "status"], configurationPath)).stdout, /ranch\s+reachable/);
     assert.match((await runCli(["ranch", "capabilities"], configurationPath)).stdout, /example\.operation/);
     const structured = JSON.parse((await runCli(["ranch", "status", "--output", "json"], configurationPath)).stdout);
-    assert.deepEqual(structured, [{ runtime: "ranch", status: "reachable", url: ranch.baseUrl }]);
+    assert.deepEqual(structured, [{
+      runtime: "ranch",
+      status: "reachable",
+      url: ranch.baseUrl,
+      identity: { runtime: { id: "ranch", name: "Wrangle Ranch" } },
+      health: { status: "ok" },
+    }]);
+    await runCli(["ranch", "target", "reset"], configurationPath);
+    const inspected = JSON.parse((await runCli([
+      "ranch", "status", "--endpoint", ranch.baseUrl, "--output", "json",
+    ], configurationPath)).stdout);
+    assert.equal(inspected[0].url, ranch.baseUrl);
+    assert.equal(inspected[0].status, "reachable");
+    assert.match((await runCli([
+      "ranch", "capabilities", "--endpoint", ranch.baseUrl,
+    ], configurationPath)).stdout, /example\.operation/);
   } finally {
     await ranch.close();
     await removeTemporaryDirectory(directory);
@@ -65,11 +80,12 @@ test("CLI explicitly configures and tests a runtime link", async () => {
   });
   try {
     await runCli(["ranch", "target", "set", source.baseUrl], configurationPath);
-    await runCli(["durable-data", "target", "set", data.baseUrl], configurationPath);
     assert.match((await runCli([
-      "durable-data", "runtime", "set", "gallery", "--url", "http://127.0.0.1:4102",
+      "durable-data", "runtime", "set", "gallery", "--url", "http://127.0.0.1:4102", "--endpoint", data.baseUrl,
     ], configurationPath)).stdout, /gallery registered/);
-    assert.match((await runCli(["ranch", "link", "durable-data", "set", "--output", "json"], configurationPath)).stdout, /fixture/);
+    assert.match((await runCli([
+      "ranch", "link", "durable-data", "set", "--url", data.baseUrl, "--endpoint", source.baseUrl, "--output", "json",
+    ], configurationPath)).stdout, /fixture/);
     assert.equal(source.requests[0].body.baseUrl, data.baseUrl);
     assert.match((await runCli(["ranch", "link", "durable-data", "test", "--output", "json"], configurationPath)).stdout, /reachable/);
   } finally {

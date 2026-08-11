@@ -12,6 +12,7 @@ The current exploration intentionally demonstrates:
 - Durable Data Server persistence across restart.
 - terminal-visible inbound, outbound, and meaningful internal activity, with repeated routine diagnostics hidden.
 - Farm-controlled setup through a configured Durable Data Server: runtime registration, Ranch and Router linking, node management, and prompt relay.
+- Farm-mediated directory registration for Ranch, Router, Gallery, and Engine; registration does not add Gallery or Engine behavior.
 
 Starting processes does not create runtime links. The provisional CLI can assemble the routed Farm flow after startup.
 

@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Agent Wrangler Monitoring / Control Surface</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">Agent Wrangler laboratory</p>
+        <h1>Monitoring / Control Surface</h1>
+      </div>
+      <p class="boundary-note">Claims shape this client’s routes. They are not authorization.</p>
+    </header>
+
+    <nav class="primary-tabs" aria-label="Primary views">
+      <button type="button" class="active" data-view="monitor">Runtime Monitor</button>
+      <button type="button" data-view="control">Scenario Control</button>
+    </nav>
+
+    <main>
+      <section id="monitor-view" class="view active" aria-labelledby="monitor-title">
+        <div class="view-heading">
+          <div>
+            <p class="eyebrow">Read-only discovery</p>
+            <h2 id="monitor-title">Runtime Monitor</h2>
+            <p>Discovery does not grant ownership or connection knowledge.</p>
+          </div>
+          <form id="scan-form" class="scan-form">
+            <label>Hosts <input id="scan-hosts" value="127.0.0.1" aria-describedby="scan-help"></label>
+            <button type="submit">Scan known ports</button>
+            <small id="scan-help">Comma-separated hosts; the default scans this machine.</small>
+          </form>
+        </div>
+        <p id="scan-status" class="status-line" role="status">No scan performed in this surface session.</p>
+        <div id="runtime-list" class="runtime-list"></div>
+      </section>
+
+      <section id="control-view" class="view" aria-labelledby="control-title">
+        <div class="view-heading compact">
+          <div>
+            <p class="eyebrow">Actor-shaped operations</p>
+            <h2 id="control-title">Scenario Control</h2>
+          </div>
+          <label class="scenario-picker">Scenario
+            <select id="scenario-select">
+              <option value="runtime-operator">Runtime Operator</option>
+              <option value="collection-administrator">Collection Administrator</option>
+            </select>
+          </label>
+        </div>
+        <div id="scenario-workspace"></div>
+      </section>
+    </main>
+
+    <dialog id="runtime-dialog">
+      <div class="dialog-heading">
+        <h2 id="dialog-title">Runtime details</h2>
+        <button id="dialog-close" type="button" class="quiet">Close</button>
+      </div>
+      <div id="dialog-body"></div>
+    </dialog>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
+

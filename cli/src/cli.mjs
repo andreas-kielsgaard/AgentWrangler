@@ -12,6 +12,7 @@ import { runtimeDirectoryHttp } from "@agent-wrangler/contracts/runtime-director
 import { requestJson } from "@agent-wrangler/http-transport";
 import {
   loadTargets,
+  normalizeTargetUrl,
   requireRuntime,
   resetTarget,
   runtimeDefinitions,
@@ -26,8 +27,8 @@ function usage(owner, subject) {
   const runtimeNames = Object.keys(runtimeDefinitions).join(", ");
   const common = `Common runtime commands:
   launch                         Start this runtime
-  status [--output text|json]    Check reachability
-  capabilities [--output text|json]
+  status [--endpoint <URL>] [--output text|json]
+  capabilities [--endpoint <URL>] [--output text|json]
   target show [--output text|json]
   target set <URL> [--output text|json]
   target reset [--output text|json]`;
@@ -50,7 +51,7 @@ Runtime names:
   if (new Set(["ranch", "farm"]).has(owner) && subject === "node") return `Manage Execution Node connections through ${owner === "farm" ? "Farm's resolved Ranch" : "Ranch"}.
 
 Usage:
-  aw ${owner} node <COMMAND> [arguments]
+  aw ${owner} node <COMMAND> [arguments] [--endpoint <URL>]
 
 Commands:
   list
@@ -66,16 +67,17 @@ Add --output json to receive structured output.
   if (new Set(["ranch", "router", "farm"]).has(owner) && subject === "link") return `Manage ${owner}'s link to the Durable Data Server.
 
 Usage:
-  aw ${owner} link durable-data <show|set|clear|test> [--output text|json]
+  aw ${owner} link durable-data <show|set|clear|test> [--url <URL>] [--endpoint <URL>] [--output text|json]
 
 Examples:
   aw ${owner} link durable-data set
+  aw ${owner} link durable-data set --url http://127.0.0.1:4106
   aw ${owner} link durable-data test
 `;
   if (new Set(["router", "farm"]).has(owner) && subject === "prompt") return `Send a prompt through ${owner === "farm" ? "Farm's resolved Router" : "Router"}.
 
 Usage:
-  aw ${owner} prompt send --connection <ID> [PROMPT] [--output text|json]
+  aw ${owner} prompt send --connection <ID> [PROMPT] [--endpoint <URL>] [--output text|json]
 
 PROMPT may instead be supplied through stdin.
 `;
@@ -83,10 +85,10 @@ PROMPT may instead be supplied through stdin.
   if (new Set(["durable-data", "farm"]).has(owner) && subject === "runtime") return `Manage the runtime directory through ${owner === "farm" ? "Farm" : "Durable Data"}.
 
 Usage:
-  aw ${owner} runtime list [--output text|json]
-  aw ${owner} runtime show <ID> [--output text|json]
-  aw ${owner} runtime set <ID> --url <URL> [--output text|json]
-  aw ${owner} runtime remove <ID> [--output text|json]
+  aw ${owner} runtime list [--endpoint <URL>] [--output text|json]
+  aw ${owner} runtime show <ID> [--endpoint <URL>] [--output text|json]
+  aw ${owner} runtime set <ID> --url <URL> [--endpoint <URL>] [--output text|json]
+  aw ${owner} runtime remove <ID> [--endpoint <URL>] [--output text|json]
 ${owner === "farm" ? `  aw farm runtime connect <ranch|router> [--output text|json]\n` : ""}`;
 
   if (runtimeDefinitions[owner]) {
@@ -97,7 +99,7 @@ ${owner === "farm" ? `  aw farm runtime connect <ranch|router> [--output text|js
         : owner === "farm"
           ? "\n\nFarm capabilities:\n  link durable-data <ACTION>    Manage Farm's Durable Data link\n  runtime <COMMAND>             Manage the Durable Data runtime directory\n  node <COMMAND>                Relay node management through resolved Ranch\n  prompt send [options]         Relay prompts through resolved Router"
           : owner === "durable-data"
-            ? "\n\nDurable Data capabilities:\n  runtime <COMMAND>             Manage registered Ranch, Router, and Gallery endpoints"
+            ? "\n\nDurable Data capabilities:\n  runtime <COMMAND>             Manage registered Ranch, Router, Gallery, and Engine endpoints"
             : "";
     return `${runtimeDefinitions[owner].name}
 
@@ -128,6 +130,7 @@ Examples:
 Options:
   -h, --help                    Show contextual help
   -v, --version                 Show the CLI version
+  --endpoint <URL>              Use an endpoint once without changing saved targets
 `;
 }
 
@@ -139,6 +142,16 @@ function parseOutput(args) {
   return {
     args: args.filter((_value, itemIndex) => itemIndex !== index && itemIndex !== index + 1),
     output,
+  };
+}
+
+function parseRuntimeOptions(args) {
+  const parsed = parseOutput(args);
+  const endpoint = option(parsed.args, "--endpoint");
+  return {
+    args: withoutOptions(parsed.args, ["--endpoint"]),
+    output: parsed.output,
+    endpoint: endpoint === undefined ? undefined : normalizeTargetUrl(endpoint),
   };
 }
 
@@ -196,19 +209,26 @@ function run(command, args) {
   });
 }
 
-async function status(names, output = "text") {
+async function status(names, output = "text", endpoint) {
+  if (endpoint && names.length !== 1) throw new Error("--endpoint can inspect only one runtime at a time.");
   const { targets } = await loadTargets();
   const records = [];
   for (const name of names) {
-    const target = targets[name];
-    if (!target) throw new Error(`Unknown runtime '${name}'.`);
+    if (!targets[name]) throw new Error(`Unknown runtime '${name}'.`);
+    const target = { ...targets[name], url: endpoint ?? targets[name].url };
     try {
       const [identity, health] = await Promise.all([
         call(target.url, runtimeDiagnosticsHttp.paths.identity),
         call(target.url, runtimeDiagnosticsHttp.paths.health),
       ]);
       const matches = identity.runtime?.id === target.id;
-      records.push({ runtime: name, status: matches && health.status === "ok" ? "reachable" : "unexpected", url: target.url });
+      records.push({
+        runtime: name,
+        status: matches && health.status === "ok" ? "reachable" : "unexpected",
+        url: target.url,
+        identity,
+        health,
+      });
     } catch (error) {
       records.push({ runtime: name, status: "unavailable", url: target.url, error: error.message });
     }
@@ -219,12 +239,13 @@ async function status(names, output = "text") {
   }
 }
 
-async function capabilities(names, output = "text") {
+async function capabilities(names, output = "text", endpoint) {
+  if (endpoint && names.length !== 1) throw new Error("--endpoint can inspect only one runtime at a time.");
   const { targets } = await loadTargets();
   const records = [];
   for (const name of names) {
-    const target = targets[name];
-    if (!target) throw new Error(`Unknown runtime '${name}'.`);
+    if (!targets[name]) throw new Error(`Unknown runtime '${name}'.`);
+    const target = { ...targets[name], url: endpoint ?? targets[name].url };
     const body = await call(target.url, runtimeCapabilitiesHttp.paths.capabilities);
     const advertised = body.capabilities;
     const operations = Array.isArray(advertised) ? advertised : advertised?.operations ?? [];
@@ -247,18 +268,21 @@ function requireLink(source, target) {
   }
 }
 
-async function link(action, source, target, output = "text") {
+async function link(action, source, target, args, output = "text", endpoint) {
   requireLink(source, target);
   const { targets } = await loadTargets();
+  const sourceUrl = endpoint ?? targets[source].url;
+  const requestedTargetUrl = option(args, "--url");
+  const targetUrl = requestedTargetUrl === undefined ? targets[target].url : normalizeTargetUrl(requestedTargetUrl);
   const path = action === "test" ? runtimeLinksHttp.paths.test(target) : runtimeLinksHttp.paths.link(target);
   const options = action === "set"
-    ? { method: "PUT", body: { baseUrl: targets[target].url } }
+    ? { method: "PUT", body: { baseUrl: targetUrl } }
     : action === "clear"
       ? { method: "DELETE" }
       : action === "test"
         ? { method: "POST", body: {} }
         : {};
-  const body = await call(targets[source].url, path, options);
+  const body = await call(sourceUrl, path, options);
   if (output === "json") return printJson(body);
   if (action === "show") {
     process.stdout.write(`${source} -> ${target}  ${body.link ? `${body.link.baseUrl} (${body.link.serverId})` : "not configured"}\n`);
@@ -271,9 +295,9 @@ async function link(action, source, target, output = "text") {
   }
 }
 
-async function nodes(owner, action, args, output = "text") {
+async function nodes(owner, action, args, output = "text", endpoint) {
   const { targets } = await loadTargets();
-  const baseUrl = targets[owner].url;
+  const baseUrl = endpoint ?? targets[owner].url;
   const collectionPath = owner === "farm" ? "/development/connections" : ranchConnectionsHttp.paths.collection;
   const connectionPath = (id) => owner === "farm" ? `/development/connections/${encodeURIComponent(id)}` : ranchConnectionsHttp.paths.connection(id);
   const observePath = (id) => `${connectionPath(id)}/test`;
@@ -331,14 +355,14 @@ async function nodes(owner, action, args, output = "text") {
   throw new Error(`Unknown nodes action '${action}'.`);
 }
 
-async function prompt(owner, args, output = "text") {
+async function prompt(owner, args, output = "text", endpoint) {
   if (args[0] !== "send") throw new Error(`Use 'aw ${owner} prompt send'.`);
   const connectionId = option(args, "--connection", true);
   const literal = withoutOptions(args.slice(1), ["--connection"]).join(" ").trim();
   const promptText = literal || (await readFile(0, "utf8")).trim();
   if (!promptText) throw new Error("Prompt text is required as an argument or stdin.");
   const { targets } = await loadTargets();
-  const baseUrl = targets[owner].url;
+  const baseUrl = endpoint ?? targets[owner].url;
   const path = owner === "farm" ? "/development/prompts" : routerPromptsHttp.paths.execute;
   const result = await call(baseUrl, path, {
     method: "POST",
@@ -349,9 +373,9 @@ async function prompt(owner, args, output = "text") {
   process.stdout.write(`${result.output?.text ?? "Prompt completed without text output."}\n`);
 }
 
-async function runtimeDirectory(owner, action, args, output = "text") {
+async function runtimeDirectory(owner, action, args, output = "text", endpoint) {
   const { targets } = await loadTargets();
-  const baseUrl = targets[owner].url;
+  const baseUrl = endpoint ?? targets[owner].url;
   const prefix = owner === "farm" ? "/development/runtime-directory" : runtimeDirectoryHttp.paths.collection;
   const entryPath = (id) => owner === "farm" ? `${prefix}/${encodeURIComponent(id)}` : runtimeDirectoryHttp.paths.runtime(id);
   if (action === "list") {
@@ -429,12 +453,16 @@ async function main() {
 
   const [subject, ...rawArguments] = args;
   if (!subject) throw new Error(`Command is required. Run 'aw ${owner} --help'.`);
-  const parsed = parseOutput(rawArguments);
+  const parsed = parseRuntimeOptions(rawArguments);
 
-  if (subject === "launch") return await launch(owner);
-  if (subject === "status") return await status([owner], parsed.output);
-  if (subject === "capabilities") return await capabilities([owner], parsed.output);
+  if (subject === "launch") {
+    if (parsed.endpoint) throw new Error("launch does not accept --endpoint; it starts the local runtime package.");
+    return await launch(owner);
+  }
+  if (subject === "status") return await status([owner], parsed.output, parsed.endpoint);
+  if (subject === "capabilities") return await capabilities([owner], parsed.output, parsed.endpoint);
   if (subject === "target") {
+    if (parsed.endpoint) throw new Error("target commands do not accept --endpoint.");
     const action = parsed.args[0];
     if (action === "show") {
       const { targets } = await loadTargets();
@@ -460,28 +488,28 @@ async function main() {
   }
 
   if (subject === "link" && new Set(["ranch", "router", "farm"]).has(owner)) {
-    const [target, action] = parsed.args;
+    const [target, action, ...linkArguments] = parsed.args;
     if (!action) throw new Error(`Use 'aw ${owner} link durable-data <show|set|clear|test>'.`);
     if (!new Set(["show", "set", "clear", "test"]).has(action)) {
       throw new Error(`Unknown link action '${action}'. Use show, set, clear, or test.`);
     }
-    return await link(action, owner, target, parsed.output);
+    return await link(action, owner, target, linkArguments, parsed.output, parsed.endpoint);
   }
 
   if (new Set(["ranch", "farm"]).has(owner) && subject === "node") {
     const [action, ...nodeArguments] = parsed.args;
     if (!action) throw new Error("Node action is required. Run 'aw ranch node --help'.");
-    return await nodes(owner, action, nodeArguments, parsed.output);
+    return await nodes(owner, action, nodeArguments, parsed.output, parsed.endpoint);
   }
 
   if (new Set(["router", "farm"]).has(owner) && subject === "prompt") {
-    return await prompt(owner, parsed.args, parsed.output);
+    return await prompt(owner, parsed.args, parsed.output, parsed.endpoint);
   }
 
   if (new Set(["durable-data", "farm"]).has(owner) && subject === "runtime") {
     const [action, ...directoryArguments] = parsed.args;
     if (!action) throw new Error(`Runtime-directory action is required. Run 'aw ${owner} runtime --help'.`);
-    return await runtimeDirectory(owner, action, directoryArguments, parsed.output);
+    return await runtimeDirectory(owner, action, directoryArguments, parsed.output, parsed.endpoint);
   }
 
   throw new Error(`'${subject}' is not owned by ${owner}. Run 'aw ${owner} --help' to see its commands.`);

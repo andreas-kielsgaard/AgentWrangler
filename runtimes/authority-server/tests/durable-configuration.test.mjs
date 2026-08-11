@@ -79,7 +79,15 @@ test("Durable Data Server starts, persists one connection, and supports its happ
       body: { baseUrl: "http://127.0.0.1:4101" },
     });
     assert.deepEqual(registered.body.runtime, { id: "ranch", baseUrl: "http://127.0.0.1:4101" });
-    assert.deepEqual((await request(`${server.baseUrl}${runtimeDirectoryHttp.paths.collection}`)).body.runtimes, [registered.body.runtime]);
+    const engine = await request(`${server.baseUrl}${runtimeDirectoryHttp.paths.runtime("engine")}`, {
+      method: "PUT",
+      body: { baseUrl: "http://127.0.0.1:4104" },
+    });
+    assert.deepEqual(engine.body.runtime, { id: "engine", baseUrl: "http://127.0.0.1:4104" });
+    assert.deepEqual((await request(`${server.baseUrl}${runtimeDirectoryHttp.paths.collection}`)).body.runtimes, [
+      registered.body.runtime,
+      engine.body.runtime,
+    ]);
     await stopProcess(server.child);
     server.child = startRuntime(server.environment);
     await waitForJson(`${server.baseUrl}/identity`);

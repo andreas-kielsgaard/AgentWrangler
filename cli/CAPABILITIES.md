@@ -10,6 +10,7 @@ The provisional `aw` CLI currently demonstrates:
 - launching one runtime or the existing process-only all-runtime launcher;
 - CLI-owned runtime target addresses and identity/health status;
 - runtime-advertised capability inspection;
+- one-command endpoint overrides for inspecting or operating through a discovered runtime without changing saved CLI targets;
 - explicit session-local Ranch and Router links to the Durable Data Server;
 - execution-node connection management and observation through Ranch;
 - direct development prompt submission through Router.

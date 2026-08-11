@@ -18,6 +18,8 @@ Farm -> Router -> Durable Data Server -> Execution Node: one prompt
 
 Farm observes identity and health for every runtime independently. Gallery and Engine currently expose only identity and health.
 
+The Durable Data runtime directory accepts Ranch, Router, Gallery, and Engine endpoints. Farm can manage those entries through its declared relay. Directory presence is configuration only and does not imply that Gallery or Engine implement collection behavior.
+
 ## Independence
 
 Each package starts, exposes identity and health, and runs local tests without requiring peer startup. A missing Durable Data Server leaves Ranch and Router running but makes their dependent operation unavailable. Runtime packages do not import sibling source or access sibling private storage.

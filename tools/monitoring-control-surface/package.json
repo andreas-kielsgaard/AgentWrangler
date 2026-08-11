@@ -1,0 +1,19 @@
+{
+  "name": "@agent-wrangler/monitoring-control-surface",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "server.mjs",
+  "scripts": {
+    "build": "node --check server.mjs && node --check src/application.mjs && node --check src/cli-client.mjs && node --check src/discovery.mjs && node --check src/process-manager.mjs && node --check src/runtime-catalog.mjs && node --check public/app.js",
+    "start": "node server.mjs",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@agent-wrangler/http-transport": "0.0.0"
+  },
+  "devDependencies": {
+    "@agent-wrangler/test-support": "0.0.0"
+  }
+}
+
