@@ -1,6 +1,7 @@
 @echo off
 setlocal
-set "PROJECT_ROOT=%~dp0"
+rem Append a dot so the quoted Windows Terminal working directory does not end in a backslash.
+set "PROJECT_ROOT=%~dp0."
 set "AUTHORITY_URL="
 set "RANCH_URL="
 set "GALLERY_URL="
