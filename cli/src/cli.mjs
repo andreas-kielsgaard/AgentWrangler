@@ -8,6 +8,7 @@ import { routerPromptsHttp } from "@agent-wrangler/contracts/router-prompts";
 import { runtimeCapabilitiesHttp } from "@agent-wrangler/contracts/runtime-capabilities";
 import { runtimeDiagnosticsHttp } from "@agent-wrangler/contracts/runtime-diagnostics";
 import { runtimeLinksHttp } from "@agent-wrangler/contracts/runtime-links";
+import { runtimeDirectoryHttp } from "@agent-wrangler/contracts/runtime-directory";
 import { requestJson } from "@agent-wrangler/http-transport";
 import {
   loadTargets,
@@ -46,10 +47,10 @@ Runtime names:
   ${runtimeNames}
 `;
 
-  if (owner === "ranch" && subject === "node") return `Manage Execution Node connections through Ranch.
+  if (new Set(["ranch", "farm"]).has(owner) && subject === "node") return `Manage Execution Node connections through ${owner === "farm" ? "Farm's resolved Ranch" : "Ranch"}.
 
 Usage:
-  aw ranch node <COMMAND> [arguments]
+  aw ${owner} node <COMMAND> [arguments]
 
 Commands:
   list
@@ -62,7 +63,7 @@ Commands:
 
 Add --output json to receive structured output.
 `;
-  if (new Set(["ranch", "router"]).has(owner) && subject === "link") return `Manage ${owner}'s link to the Durable Data Server.
+  if (new Set(["ranch", "router", "farm"]).has(owner) && subject === "link") return `Manage ${owner}'s link to the Durable Data Server.
 
 Usage:
   aw ${owner} link durable-data <show|set|clear|test> [--output text|json]
@@ -71,20 +72,33 @@ Examples:
   aw ${owner} link durable-data set
   aw ${owner} link durable-data test
 `;
-  if (owner === "router" && subject === "prompt") return `Send a prompt through Router.
+  if (new Set(["router", "farm"]).has(owner) && subject === "prompt") return `Send a prompt through ${owner === "farm" ? "Farm's resolved Router" : "Router"}.
 
 Usage:
-  aw router prompt send --connection <ID> [PROMPT] [--output text|json]
+  aw ${owner} prompt send --connection <ID> [PROMPT] [--output text|json]
 
 PROMPT may instead be supplied through stdin.
 `;
 
+  if (new Set(["durable-data", "farm"]).has(owner) && subject === "runtime") return `Manage the runtime directory through ${owner === "farm" ? "Farm" : "Durable Data"}.
+
+Usage:
+  aw ${owner} runtime list [--output text|json]
+  aw ${owner} runtime show <ID> [--output text|json]
+  aw ${owner} runtime set <ID> --url <URL> [--output text|json]
+  aw ${owner} runtime remove <ID> [--output text|json]
+${owner === "farm" ? `  aw farm runtime connect <ranch|router> [--output text|json]\n` : ""}`;
+
   if (runtimeDefinitions[owner]) {
     const owned = owner === "ranch"
       ? "\n\nRanch capabilities:\n  node <COMMAND>                 Manage and observe Execution Node connections\n  link durable-data <ACTION>    Manage Ranch's Durable Data link"
-      : owner === "router"
+        : owner === "router"
         ? "\n\nRouter capabilities:\n  prompt send [options]         Route a prompt\n  link durable-data <ACTION>    Manage Router's Durable Data link"
-        : "";
+        : owner === "farm"
+          ? "\n\nFarm capabilities:\n  link durable-data <ACTION>    Manage Farm's Durable Data link\n  runtime <COMMAND>             Manage the Durable Data runtime directory\n  node <COMMAND>                Relay node management through resolved Ranch\n  prompt send [options]         Relay prompts through resolved Router"
+          : owner === "durable-data"
+            ? "\n\nDurable Data capabilities:\n  runtime <COMMAND>             Manage registered Ranch, Router, and Gallery endpoints"
+            : "";
     return `${runtimeDefinitions[owner].name}
 
 Usage:
@@ -228,8 +242,8 @@ async function capabilities(names, output = "text") {
 }
 
 function requireLink(source, target) {
-  if (!new Set(["ranch", "router"]).has(source) || target !== "durable-data") {
-    throw new Error("Current links are ranch durable-data and router durable-data.");
+  if (!new Set(["ranch", "router", "farm"]).has(source) || target !== "durable-data") {
+    throw new Error("Ranch, Router, and Farm currently expose a Durable Data link.");
   }
 }
 
@@ -257,11 +271,14 @@ async function link(action, source, target, output = "text") {
   }
 }
 
-async function nodes(action, args, output = "text") {
+async function nodes(owner, action, args, output = "text") {
   const { targets } = await loadTargets();
-  const ranchUrl = targets.ranch.url;
+  const baseUrl = targets[owner].url;
+  const collectionPath = owner === "farm" ? "/development/connections" : ranchConnectionsHttp.paths.collection;
+  const connectionPath = (id) => owner === "farm" ? `/development/connections/${encodeURIComponent(id)}` : ranchConnectionsHttp.paths.connection(id);
+  const observePath = (id) => `${connectionPath(id)}/test`;
   if (action === "list") {
-    const body = await call(ranchUrl, ranchConnectionsHttp.paths.collection);
+    const body = await call(baseUrl, collectionPath);
     if (output === "json") return printJson(body);
     if (!body.connections?.length) return process.stdout.write("No Execution Node connections configured.\n");
     for (const connection of body.connections) {
@@ -276,7 +293,7 @@ async function nodes(action, args, output = "text") {
     };
     const id = option(args, "--id");
     if (id) body.id = id;
-    const result = await call(ranchUrl, ranchConnectionsHttp.paths.collection, { method: "POST", body });
+    const result = await call(baseUrl, collectionPath, { method: "POST", body });
     if (output === "json") return printJson(result);
     process.stdout.write(`${result.connection.id} added at ${result.connection.baseUrl}\n`);
     return;
@@ -284,14 +301,14 @@ async function nodes(action, args, output = "text") {
   const id = args[0];
   if (!id) throw new Error("Connection id is required.");
   if (action === "show") {
-    const result = await call(ranchUrl, ranchConnectionsHttp.paths.connection(id));
+    const result = await call(baseUrl, connectionPath(id));
     if (output === "json") return printJson(result);
     const connection = result.connection;
     process.stdout.write(`${connection.id}\n  name: ${connection.name}\n  url: ${connection.baseUrl}\n  enabled: ${connection.enabled}\n`);
     return;
   }
   if (action === "enable" || action === "disable") {
-    const result = await call(ranchUrl, ranchConnectionsHttp.paths.connection(id), {
+    const result = await call(baseUrl, connectionPath(id), {
       method: "PUT",
       body: { enabled: action === "enable" },
     });
@@ -300,13 +317,13 @@ async function nodes(action, args, output = "text") {
     return;
   }
   if (action === "remove") {
-    const result = await call(ranchUrl, ranchConnectionsHttp.paths.connection(id), { method: "DELETE" });
+    const result = await call(baseUrl, connectionPath(id), { method: "DELETE" });
     if (output === "json") return printJson(result);
     process.stdout.write(`${id} removed\n`);
     return;
   }
   if (action === "observe") {
-    const result = await call(ranchUrl, ranchConnectionsHttp.paths.test(id), { method: "POST", body: {} });
+    const result = await call(baseUrl, observePath(id), { method: "POST", body: {} });
     if (output === "json") return printJson(result);
     process.stdout.write(`${id} ${result.test?.reachable ? "reachable" : "unreachable"}\n`);
     return;
@@ -314,20 +331,64 @@ async function nodes(action, args, output = "text") {
   throw new Error(`Unknown nodes action '${action}'.`);
 }
 
-async function prompt(args, output = "text") {
-  if (args[0] !== "send") throw new Error("Use 'aw router prompt send'.");
+async function prompt(owner, args, output = "text") {
+  if (args[0] !== "send") throw new Error(`Use 'aw ${owner} prompt send'.`);
   const connectionId = option(args, "--connection", true);
   const literal = withoutOptions(args.slice(1), ["--connection"]).join(" ").trim();
   const promptText = literal || (await readFile(0, "utf8")).trim();
   if (!promptText) throw new Error("Prompt text is required as an argument or stdin.");
   const { targets } = await loadTargets();
-  const result = await call(targets.router.url, routerPromptsHttp.paths.execute, {
+  const baseUrl = targets[owner].url;
+  const path = owner === "farm" ? "/development/prompts" : routerPromptsHttp.paths.execute;
+  const result = await call(baseUrl, path, {
     method: "POST",
     body: { connectionId, prompt: promptText },
     timeoutMs: 130_000,
   });
   if (output === "json") return printJson(result);
   process.stdout.write(`${result.output?.text ?? "Prompt completed without text output."}\n`);
+}
+
+async function runtimeDirectory(owner, action, args, output = "text") {
+  const { targets } = await loadTargets();
+  const baseUrl = targets[owner].url;
+  const prefix = owner === "farm" ? "/development/runtime-directory" : runtimeDirectoryHttp.paths.collection;
+  const entryPath = (id) => owner === "farm" ? `${prefix}/${encodeURIComponent(id)}` : runtimeDirectoryHttp.paths.runtime(id);
+  if (action === "list") {
+    const body = await call(baseUrl, prefix);
+    if (output === "json") return printJson(body);
+    if (!body.runtimes?.length) return process.stdout.write("No runtime endpoints registered.\n");
+    for (const runtime of body.runtimes) process.stdout.write(`${runtime.id.padEnd(10)} ${runtime.baseUrl}\n`);
+    return;
+  }
+  const id = args[0];
+  if (!id) throw new Error("Runtime id is required.");
+  if (action === "show") {
+    const body = await call(baseUrl, entryPath(id));
+    if (output === "json") return printJson(body);
+    process.stdout.write(`${body.runtime.id} ${body.runtime.baseUrl}\n`);
+    return;
+  }
+  if (action === "set") {
+    const url = option(args, "--url", true);
+    const body = await call(baseUrl, entryPath(id), { method: "PUT", body: { baseUrl: url } });
+    if (output === "json") return printJson(body);
+    process.stdout.write(`${body.runtime.id} registered at ${body.runtime.baseUrl}\n`);
+    return;
+  }
+  if (action === "remove") {
+    const body = await call(baseUrl, entryPath(id), { method: "DELETE" });
+    if (output === "json") return printJson(body);
+    process.stdout.write(`${id} removed\n`);
+    return;
+  }
+  if (owner === "farm" && action === "connect") {
+    const body = await call(baseUrl, `${entryPath(id)}/connect`, { method: "POST", body: {} });
+    if (output === "json") return printJson(body);
+    process.stdout.write(`${id} connected to Farm's Durable Data Server\n`);
+    return;
+  }
+  throw new Error(`Unknown runtime-directory action '${action}'.`);
 }
 
 async function main() {
@@ -398,7 +459,7 @@ async function main() {
     throw new Error(`Target action is required. Run 'aw ${owner} target --help'.`);
   }
 
-  if (subject === "link" && new Set(["ranch", "router"]).has(owner)) {
+  if (subject === "link" && new Set(["ranch", "router", "farm"]).has(owner)) {
     const [target, action] = parsed.args;
     if (!action) throw new Error(`Use 'aw ${owner} link durable-data <show|set|clear|test>'.`);
     if (!new Set(["show", "set", "clear", "test"]).has(action)) {
@@ -407,14 +468,20 @@ async function main() {
     return await link(action, owner, target, parsed.output);
   }
 
-  if (owner === "ranch" && subject === "node") {
+  if (new Set(["ranch", "farm"]).has(owner) && subject === "node") {
     const [action, ...nodeArguments] = parsed.args;
     if (!action) throw new Error("Node action is required. Run 'aw ranch node --help'.");
-    return await nodes(action, nodeArguments, parsed.output);
+    return await nodes(owner, action, nodeArguments, parsed.output);
   }
 
-  if (owner === "router" && subject === "prompt") {
-    return await prompt(parsed.args, parsed.output);
+  if (new Set(["router", "farm"]).has(owner) && subject === "prompt") {
+    return await prompt(owner, parsed.args, parsed.output);
+  }
+
+  if (new Set(["durable-data", "farm"]).has(owner) && subject === "runtime") {
+    const [action, ...directoryArguments] = parsed.args;
+    if (!action) throw new Error(`Runtime-directory action is required. Run 'aw ${owner} runtime --help'.`);
+    return await runtimeDirectory(owner, action, directoryArguments, parsed.output);
   }
 
   throw new Error(`'${subject}' is not owned by ${owner}. Run 'aw ${owner} --help' to see its commands.`);

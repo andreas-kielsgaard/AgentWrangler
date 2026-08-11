@@ -57,10 +57,18 @@ test("CLI explicitly configures and tests a runtime link", async () => {
     }
     return { statusCode: 404, body: {} };
   });
-  const data = await startTestServer(() => ({ body: {} }));
+  const data = await startTestServer(({ method, path, body }) => {
+    if (method === "PUT" && path === "/durable/runtime-directory/gallery") {
+      return { body: { runtime: { id: "gallery", baseUrl: body.baseUrl } } };
+    }
+    return { body: { runtimes: [] } };
+  });
   try {
     await runCli(["ranch", "target", "set", source.baseUrl], configurationPath);
     await runCli(["durable-data", "target", "set", data.baseUrl], configurationPath);
+    assert.match((await runCli([
+      "durable-data", "runtime", "set", "gallery", "--url", "http://127.0.0.1:4102",
+    ], configurationPath)).stdout, /gallery registered/);
     assert.match((await runCli(["ranch", "link", "durable-data", "set", "--output", "json"], configurationPath)).stdout, /fixture/);
     assert.equal(source.requests[0].body.baseUrl, data.baseUrl);
     assert.match((await runCli(["ranch", "link", "durable-data", "test", "--output", "json"], configurationPath)).stdout, /reachable/);
@@ -126,6 +134,44 @@ test("CLI grammar is discoverable and rejects removed legacy commands", async ()
       return true;
     });
   } finally {
+    await removeTemporaryDirectory(directory);
+  }
+});
+
+test("CLI controls the routed happy flow through Farm", async () => {
+  const directory = await makeTemporaryDirectory("agent-wrangler-cli-farm-");
+  const configurationPath = join(directory, "targets.json");
+  const farm = await startTestServer(({ method, path, body }) => {
+    if (path === runtimeLinksHttp.paths.link("durable-data") && method === "PUT") {
+      return { body: { link: { baseUrl: body.baseUrl, serverId: "data" } } };
+    }
+    if (path === "/development/runtime-directory/ranch" && method === "PUT") {
+      return { body: { runtime: { id: "ranch", baseUrl: body.baseUrl } } };
+    }
+    if (path === "/development/runtime-directory/ranch/connect" && method === "POST") {
+      return { body: { link: { target: "durable-data" } } };
+    }
+    if (path === "/development/connections" && method === "POST") {
+      return { statusCode: 201, body: { connection: { id: body.id, ...body, enabled: true } } };
+    }
+    if (path === "/development/prompts" && method === "POST") {
+      return { body: { output: { text: `farm: ${body.prompt}` } } };
+    }
+    return { statusCode: 404, body: { error: { message: "not found" } } };
+  });
+  const data = await startTestServer(() => ({ body: {} }));
+  try {
+    await runCli(["farm", "target", "set", farm.baseUrl], configurationPath);
+    await runCli(["durable-data", "target", "set", data.baseUrl], configurationPath);
+    assert.match((await runCli(["farm", "link", "durable-data", "set"], configurationPath)).stdout, /configured/);
+    assert.match((await runCli(["farm", "runtime", "set", "ranch", "--url", "http://127.0.0.1:4101"], configurationPath)).stdout, /registered/);
+    assert.match((await runCli(["farm", "runtime", "connect", "ranch"], configurationPath)).stdout, /connected/);
+    assert.match((await runCli([
+      "farm", "node", "add", "--id", "node", "--name", "Local", "--url", "http://127.0.0.1:4110",
+    ], configurationPath)).stdout, /node added/);
+    assert.match((await runCli(["farm", "prompt", "send", "--connection", "node", "hello"], configurationPath)).stdout, /farm: hello/);
+  } finally {
+    await Promise.all([farm.close(), data.close()]);
     await removeTemporaryDirectory(directory);
   }
 });

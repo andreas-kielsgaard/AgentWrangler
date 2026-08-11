@@ -6,7 +6,7 @@ Project declared runtime capabilities as concrete commands instead of exposing a
 
 ## Command design
 
-- Put runtime-owned capabilities beneath the runtime receiving the request, such as `aw ranch node observe` and `aw router prompt send`.
+- Capabilities should belong to a runtime. Put runtime-owned capabilities beneath the runtime receiving the request, such as `aw ranch node observe` and `aw router prompt send`.
 - Put operations over the runtime collection beneath `aw runtimes`.
 - Treat declared runtime contracts and advertised capabilities as authoritative. CLI commands project those capabilities; they do not define, imply, or reshape them.
 - Do not add a command until its owning runtime exposes the corresponding capability through a declared interface.

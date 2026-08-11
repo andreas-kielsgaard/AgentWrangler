@@ -4,6 +4,7 @@ import { test } from "node:test";
 import { authorityConnectionsHttp } from "@agent-wrangler/contracts/authority-connections";
 import { authorityIdentityHttp } from "@agent-wrangler/contracts/authority-identity";
 import { authorityRouterConfigurationHttp } from "@agent-wrangler/contracts/authority-router-configuration";
+import { runtimeDirectoryHttp } from "@agent-wrangler/contracts/runtime-directory";
 import {
   freePort,
   makeTemporaryDirectory,
@@ -23,14 +24,16 @@ const startRuntime = (environment) => startNodeProcess(new URL("../server.mjs", 
 async function startServer(directory) {
   const port = await freePort();
   const configurationPath = join(directory, "connections.json");
+  const runtimeDirectoryPath = join(directory, "runtime-directory.json");
   const environment = {
     AUTHORITY_PORT: String(port),
     AUTHORITY_ID: "test-server",
     AUTHORITY_CONNECTIONS_PATH: configurationPath,
+    AUTHORITY_RUNTIME_DIRECTORY_PATH: runtimeDirectoryPath,
   };
   const child = startRuntime(environment);
   await waitForJson(`http://127.0.0.1:${port}/identity`);
-  return { child, baseUrl: `http://127.0.0.1:${port}`, configurationPath, environment };
+  return { child, baseUrl: `http://127.0.0.1:${port}`, configurationPath, runtimeDirectoryPath, environment };
 }
 
 test("Durable Data Server starts, persists one connection, and supports its happy-flow operations", async () => {
@@ -70,6 +73,17 @@ test("Durable Data Server starts, persists one connection, and supports its happ
 
     const stored = await readJson(server.configurationPath);
     assert.deepEqual(Object.keys(stored).sort(), ["connections", "schemaVersion", "serverId"]);
+
+    const registered = await request(`${server.baseUrl}${runtimeDirectoryHttp.paths.runtime("ranch")}`, {
+      method: "PUT",
+      body: { baseUrl: "http://127.0.0.1:4101" },
+    });
+    assert.deepEqual(registered.body.runtime, { id: "ranch", baseUrl: "http://127.0.0.1:4101" });
+    assert.deepEqual((await request(`${server.baseUrl}${runtimeDirectoryHttp.paths.collection}`)).body.runtimes, [registered.body.runtime]);
+    await stopProcess(server.child);
+    server.child = startRuntime(server.environment);
+    await waitForJson(`${server.baseUrl}/identity`);
+    assert.deepEqual((await request(`${server.baseUrl}${runtimeDirectoryHttp.paths.runtime("ranch")}`)).body.runtime, registered.body.runtime);
   } finally {
     await stopProcess(server.child);
     await removeTemporaryDirectory(directory);

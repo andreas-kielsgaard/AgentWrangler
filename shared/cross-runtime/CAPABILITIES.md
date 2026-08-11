@@ -11,8 +11,9 @@ The current exploration intentionally demonstrates:
 - Farm -> Router prompt relay;
 - Durable Data Server persistence across restart.
 - terminal-visible inbound, outbound, and meaningful internal activity, with repeated routine diagnostics hidden.
+- Farm-controlled setup through a configured Durable Data Server: runtime registration, Ranch and Router linking, node management, and prompt relay.
 
-Starting processes does not create runtime links. The provisional CLI can configure and test the two currently supported links after startup.
+Starting processes does not create runtime links. The provisional CLI can assemble the routed Farm flow after startup.
 
 Happy-flow tests live in `tests/disposable-runtime-scaffold.test.mjs` and `tests/direct-codex-prompt-path.test.mjs`. They use the deterministic fake Codex provider.
 

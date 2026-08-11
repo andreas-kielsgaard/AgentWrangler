@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { authorityConnectionsHttp } from "@agent-wrangler/contracts/authority-connections";
 import { authorityIdentityHttp } from "@agent-wrangler/contracts/authority-identity";
+import { directoryRuntimeIds, runtimeDirectoryHttp } from "@agent-wrangler/contracts/runtime-directory";
 import {
   authorityRouterConfigurationHttp,
   createAuthorityRouterConfiguration,
@@ -13,12 +14,17 @@ import { logRuntimeActivity, startRuntime } from "@agent-wrangler/runtime-diagno
 
 const SLICE = "temporary-durable-data-server-connections/v1";
 const STORE_SCHEMA = "temporary-durable-data-server-connection-store/v1";
+const DIRECTORY_SCHEMA = "temporary-durable-data-runtime-directory/v1";
 const packageRoot = fileURLToPath(new URL("./", import.meta.url));
 const port = readPort("AUTHORITY_PORT", 4106);
 const serverId = process.env.AUTHORITY_ID ?? "local-durable-data-server";
 const configurationPath = resolve(
   packageRoot,
   process.env.AUTHORITY_CONNECTIONS_PATH ?? "runtime-data/execution-node-connections.json",
+);
+const runtimeDirectoryPath = resolve(
+  packageRoot,
+  process.env.AUTHORITY_RUNTIME_DIRECTORY_PATH ?? "runtime-data/runtime-directory.json",
 );
 
 if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/.test(serverId)) {
@@ -32,6 +38,16 @@ let store = await readJsonFile(configurationPath, {
 });
 validateStore(store);
 await writeJsonAtomic(configurationPath, store);
+let runtimeDirectory = await readJsonFile(runtimeDirectoryPath, {
+  schemaVersion: DIRECTORY_SCHEMA,
+  serverId,
+  runtimes: [],
+});
+if (runtimeDirectory?.schemaVersion !== DIRECTORY_SCHEMA || runtimeDirectory.serverId !== serverId || !Array.isArray(runtimeDirectory.runtimes)) {
+  throw new Error(`Invalid Durable Data Server runtime directory at ${runtimeDirectoryPath}.`);
+}
+for (const entry of runtimeDirectory.runtimes) validateRuntimeEntry(entry);
+await writeJsonAtomic(runtimeDirectoryPath, runtimeDirectory);
 
 function envelope(fields) {
   return { slice: SLICE, productContract: false, temporaryImplementation: true, serverId, ...fields };
@@ -100,6 +116,17 @@ async function commitConnections(connections) {
   store = next;
 }
 
+function validateRuntimeEntry(entry) {
+  if (!entry || !directoryRuntimeIds.includes(entry.id)) throw invalid(`runtime id must be one of: ${directoryRuntimeIds.join(", ")}.`);
+  return { id: entry.id, baseUrl: normalizeLoopbackUrl(entry.baseUrl) };
+}
+
+async function commitRuntimeDirectory(runtimes) {
+  const next = { ...runtimeDirectory, runtimes };
+  await writeJsonAtomic(runtimeDirectoryPath, next);
+  runtimeDirectory = next;
+}
+
 function conflict(message) {
   const error = new Error(message);
   error.statusCode = 409;
@@ -120,6 +147,10 @@ startRuntime({
       "execution-node-connections.update",
       "execution-node-connections.delete",
       "router-connection-configuration.read",
+      "runtime-directory.list",
+      "runtime-directory.read",
+      "runtime-directory.set",
+      "runtime-directory.remove",
     ],
     dependencies: [],
   },
@@ -127,6 +158,39 @@ startRuntime({
     if (request.method === "GET" && path === authorityIdentityHttp.paths.identity) {
       sendJson(response, 200, envelope({ server: { id: serverId } }));
       return true;
+    }
+
+    const directoryId = connectionIdFrom(path, runtimeDirectoryHttp.paths.collection);
+    if (path === runtimeDirectoryHttp.paths.collection && request.method === "GET") {
+      sendJson(response, 200, envelope({ runtimes: runtimeDirectory.runtimes }));
+      return true;
+    }
+    if (directoryId !== null) {
+      try {
+        const existing = runtimeDirectory.runtimes.find((entry) => entry.id === directoryId);
+        if (request.method === "GET") {
+          if (!existing) sendJson(response, 404, envelope({ error: { message: "Runtime is not registered." } }));
+          else sendJson(response, 200, envelope({ runtime: existing }));
+          return true;
+        }
+        if (request.method === "PUT") {
+          const body = await readJsonBody(request);
+          const entry = validateRuntimeEntry({ id: directoryId, baseUrl: body.baseUrl });
+          await commitRuntimeDirectory([...runtimeDirectory.runtimes.filter((item) => item.id !== directoryId), entry]);
+          logRuntimeActivity("registered runtime endpoint", `${entry.id} ${entry.baseUrl}`);
+          sendJson(response, 200, envelope({ runtime: entry }));
+          return true;
+        }
+        if (request.method === "DELETE") {
+          await commitRuntimeDirectory(runtimeDirectory.runtimes.filter((entry) => entry.id !== directoryId));
+          logRuntimeActivity("removed runtime endpoint", directoryId);
+          sendJson(response, 200, envelope({ removedRuntimeId: directoryId }));
+          return true;
+        }
+      } catch (error) {
+        routeError(response, error, envelope);
+        return true;
+      }
     }
 
     const managementId = connectionIdFrom(path, authorityConnectionsHttp.paths.collection);

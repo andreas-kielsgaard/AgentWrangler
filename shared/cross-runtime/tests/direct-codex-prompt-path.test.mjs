@@ -27,11 +27,9 @@ test("Farm manages a durable connection, Ranch observes the node, and Router exe
     FARM_PORT: String(ports.farm),
     CODEX_NODE_PORT: String(ports["execution-node"]),
     AUTHORITY_ID: "test-server",
-    AUTHORITY_URL: `http://127.0.0.1:${ports["authority-server"]}`,
-    RANCH_URL: `http://127.0.0.1:${ports.ranch}`,
-    ROUTER_URL: `http://127.0.0.1:${ports.router}`,
     CODEX_NODE_URL: `http://127.0.0.1:${ports["execution-node"]}`,
     AUTHORITY_CONNECTIONS_PATH: join(directory, "connections.json"),
+    AUTHORITY_RUNTIME_DIRECTORY_PATH: join(directory, "runtime-directory.json"),
     CODEX_EXECUTABLE: process.execPath,
     CODEX_EXECUTABLE_ARGS_JSON: JSON.stringify([fakeCodexPath]),
     CODEX_NODE_WORKING_DIRECTORY: join(directory, "node-workspace"),
@@ -44,7 +42,20 @@ test("Farm manages a durable connection, Ranch observes the node, and Router exe
   try {
     await Promise.all(ids.map((id) => waitForJson(`http://127.0.0.1:${ports[id]}/identity`)));
     const farmUrl = `http://127.0.0.1:${ports.farm}`;
+    const authorityUrl = `http://127.0.0.1:${ports["authority-server"]}`;
     const nodeUrl = `http://127.0.0.1:${ports["execution-node"]}`;
+
+    await request(`${farmUrl}/runtime/links/durable-data`, { method: "PUT", body: { baseUrl: authorityUrl } });
+    await request(`${farmUrl}/development/runtime-directory/ranch`, {
+      method: "PUT",
+      body: { baseUrl: `http://127.0.0.1:${ports.ranch}` },
+    });
+    await request(`${farmUrl}/development/runtime-directory/router`, {
+      method: "PUT",
+      body: { baseUrl: `http://127.0.0.1:${ports.router}` },
+    });
+    assert.equal((await request(`${farmUrl}/development/runtime-directory/ranch/connect`, { method: "POST", body: {} })).statusCode, 200);
+    assert.equal((await request(`${farmUrl}/development/runtime-directory/router/connect`, { method: "POST", body: {} })).statusCode, 200);
 
     const created = await request(`${farmUrl}/development/connections`, {
       method: "POST",
@@ -67,7 +78,7 @@ test("Farm manages a durable connection, Ranch observes the node, and Router exe
 
     await stopProcess(children["authority-server"]);
     children["authority-server"] = startNodeProcess(entries["authority-server"], { environment, label: "authority-server" });
-    await waitForJson(`${environment.AUTHORITY_URL}/identity`);
+    await waitForJson(`${authorityUrl}/identity`);
     assert.deepEqual((await request(`${farmUrl}/development/connections`)).body.connections.map((connection) => connection.id), ["local-node"]);
   } finally {
     await Promise.all(Object.values(children).map(stopProcess));

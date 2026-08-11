@@ -4,6 +4,7 @@ The provisional `aw` CLI currently demonstrates:
 
 - runtime-owned command families that expose each capability beneath the runtime receiving the request;
 - collection-wide process and inspection commands under `aw runtimes`;
+- Farm-owned commands for configuring its Durable Data link, managing the runtime directory, connecting Ranch and Router, managing nodes through Ranch, and prompting through Router;
 - layered help, familiar long options, actionable errors, and a version command;
 - separate concise text and structured JSON output for human and programmatic use;
 - launching one runtime or the existing process-only all-runtime launcher;
