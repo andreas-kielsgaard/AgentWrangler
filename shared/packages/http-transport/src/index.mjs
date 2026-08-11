@@ -1,6 +1,27 @@
 import http from "node:http";
 
 const DEFAULT_BODY_LIMIT = 256 * 1024;
+const ROUTINE_OUTGOING_PATHS = new Set(["/identity", "/health", "/runtime/capabilities"]);
+let activitySource = null;
+const routineOutgoingSeen = new Set();
+
+export function setHttpActivitySource(runtimeId) {
+  activitySource = runtimeId;
+}
+
+function outgoingLogDecision(method, url) {
+  if (!activitySource) return false;
+  const path = new URL(url).pathname;
+  const routine = method === "GET" && ROUTINE_OUTGOING_PATHS.has(path);
+  const key = `${method} ${url}`;
+  if (routine && routineOutgoingSeen.has(key)) return false;
+  if (routine) routineOutgoingSeen.add(key);
+  return true;
+}
+
+function responseLabel(body, method, url) {
+  return body?.runtime?.id ?? body?.server?.id ?? body?.serverId ?? `${method} ${url}`;
+}
 
 export function readPort(environmentName, fallback) {
   const rawValue = process.env[environmentName];
@@ -50,11 +71,14 @@ export async function readJsonBody(request, limit = DEFAULT_BODY_LIMIT) {
 }
 
 export async function requestJson(url, options = {}) {
+  const method = options.method ?? "GET";
+  const logActivity = outgoingLogDecision(method, url);
+  if (logActivity) console.log(`[request]  ${method} ${url}`);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), options.timeoutMs ?? 2_000);
   try {
     const response = await fetch(url, {
-      method: options.method ?? "GET",
+      method,
       headers: options.body === undefined ? undefined : { "content-type": "application/json" },
       body: options.body === undefined ? undefined : JSON.stringify(options.body),
       signal: controller.signal,
@@ -66,7 +90,11 @@ export async function requestJson(url, options = {}) {
     } catch {
       body = { error: { code: "invalid_json_response", message: text } };
     }
+    if (logActivity) console.log(`[response] ${response.status} ${responseLabel(body, method, url)}`);
     return { statusCode: response.status, body };
+  } catch (error) {
+    if (logActivity) console.log(`[response] FAILED ${error instanceof Error ? error.message : String(error)}`);
+    throw error;
   } finally {
     clearTimeout(timeout);
   }

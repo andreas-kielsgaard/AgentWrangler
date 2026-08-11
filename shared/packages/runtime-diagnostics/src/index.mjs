@@ -1,8 +1,18 @@
 import { runtimeDiagnosticsHttp } from "@agent-wrangler/contracts/runtime-diagnostics";
 import { runtimeCapabilitiesHttp } from "@agent-wrangler/contracts/runtime-capabilities";
-import { fetchJson, sendJson, startHttpServer } from "@agent-wrangler/http-transport";
+import { fetchJson, sendJson, setHttpActivitySource, startHttpServer } from "@agent-wrangler/http-transport";
 
 const DIAGNOSTIC_LABEL = "disposable-scaffold-diagnostic";
+const ROUTINE_PATHS = new Set([
+  runtimeDiagnosticsHttp.paths.identity,
+  runtimeDiagnosticsHttp.paths.health,
+  runtimeCapabilitiesHttp.paths.capabilities,
+]);
+
+export function logRuntimeActivity(message, details = "") {
+  const suffix = details ? ` ${details}` : "";
+  console.log(`[activity] ${message}${suffix}`);
+}
 
 export function diagnosticEnvelope(fields) {
   return { scaffoldBehavior: DIAGNOSTIC_LABEL, productContract: false, ...fields };
@@ -29,14 +39,24 @@ export async function probeRuntime(target, timeoutMs = 1_500) {
 }
 
 export function startRuntime({ id, name, port, capabilities = { operations: [], dependencies: [] }, handleRoute }) {
+  setHttpActivitySource(id);
   const host = process.env.RUNTIME_HOST ?? "127.0.0.1";
   const startedAt = new Date().toISOString();
   const runtime = { id, name };
+  const routineRequestsSeen = new Set();
   const server = startHttpServer({
     host,
     port,
     async handleRequest(request, response) {
       const path = new URL(request.url ?? "/", `http://${host}:${port}`).pathname;
+      const requestLabel = `${request.method} ${path}`;
+      const routine = request.method === "GET" && ROUTINE_PATHS.has(path);
+      const shouldLog = !routine || !routineRequestsSeen.has(requestLabel);
+      if (routine) routineRequestsSeen.add(requestLabel);
+      if (shouldLog) {
+        console.log(`[request]  ${requestLabel}`);
+        response.once("finish", () => console.log(`[response] ${response.statusCode} ${requestLabel}`));
+      }
       if (request.method === "GET" && path === runtimeDiagnosticsHttp.paths.identity) {
         sendJson(response, 200, diagnosticEnvelope({ runtime, processId: process.pid, host, port, startedAt }));
         return;

@@ -2,6 +2,7 @@
 
 `authority-server` is a temporary package and product name. The runtime currently demonstrates:
 
+- terminal-visible request and connection-write activity;
 - independent start, identity, and health;
 - machine-readable capability advertisement;
 - one stable configured server identifier;

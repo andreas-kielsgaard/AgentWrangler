@@ -10,6 +10,7 @@ The current exploration intentionally demonstrates:
 - Router -> Durable Data Server -> Execution Node prompt execution;
 - Farm -> Router prompt relay;
 - Durable Data Server persistence across restart.
+- terminal-visible inbound, outbound, and meaningful internal activity, with repeated routine diagnostics hidden.
 
 Starting processes does not create runtime links. The provisional CLI can configure and test the two currently supported links after startup.
 

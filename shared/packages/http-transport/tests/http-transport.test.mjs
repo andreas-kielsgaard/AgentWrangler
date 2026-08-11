@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { Readable } from "node:stream";
 import { test } from "node:test";
-import { readJsonBody, requestJson } from "../src/index.mjs";
+import { readJsonBody, requestJson, setHttpActivitySource } from "../src/index.mjs";
 import { startTestServer } from "@agent-wrangler/test-support";
 
 test("HTTP helpers carry JSON and bound request bodies", async () => {
@@ -13,6 +13,24 @@ test("HTTP helpers carry JSON and bound request bodies", async () => {
       observed: { value: 1 },
     });
   } finally {
+    await server.close();
+  }
+});
+
+test("HTTP client activity shows paired outgoing request and response", async () => {
+  const lines = [];
+  const originalLog = console.log;
+  console.log = (line) => lines.push(line);
+  setHttpActivitySource("test-runtime");
+  const server = await startTestServer(() => ({ body: { server: { id: "durable-data" } } }));
+  try {
+    await requestJson(`${server.baseUrl}/identity`);
+    assert.deepEqual(lines, [
+      `[request]  GET ${server.baseUrl}/identity`,
+      "[response] 200 durable-data",
+    ]);
+  } finally {
+    console.log = originalLog;
     await server.close();
   }
 });

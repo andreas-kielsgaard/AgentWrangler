@@ -7,7 +7,7 @@ import { authorityIdentityHttp } from "@agent-wrangler/contracts/authority-ident
 import { routerPromptsHttp } from "@agent-wrangler/contracts/router-prompts";
 import { runtimeLinksHttp } from "@agent-wrangler/contracts/runtime-links";
 import { readJsonBody, readPort, requestJson, routeError, sendJson } from "@agent-wrangler/http-transport";
-import { startRuntime } from "@agent-wrangler/runtime-diagnostics";
+import { logRuntimeActivity, startRuntime } from "@agent-wrangler/runtime-diagnostics";
 
 const SLICE = "temporary-direct-execution-node-routing/v2";
 const port = readPort("ROUTER_PORT", 4103);
@@ -124,17 +124,20 @@ startRuntime({
         if (request.method === "PUT") {
           const body = await readJsonBody(request);
           durableServer = await observeDurableServer(normalizeRuntimeUrl(body.baseUrl));
+          logRuntimeActivity("configured Durable Data link", durableServer.baseUrl);
           sendJson(response, 200, envelope({ link: durableServer }));
           return true;
         }
         if (request.method === "DELETE") {
           durableServer = null;
+          logRuntimeActivity("cleared Durable Data link");
           sendJson(response, 200, envelope({ link: null }));
           return true;
         }
       }
       if (path === runtimeLinksHttp.paths.test("durable-data") && request.method === "POST") {
         const configured = requireDurableServer();
+        logRuntimeActivity("testing Durable Data link", configured.baseUrl);
         const observed = await observeDurableServer(configured.baseUrl);
         if (observed.serverId !== configured.serverId) {
           const error = new Error("Durable Data Server identity changed after configuration.");
@@ -159,6 +162,7 @@ startRuntime({
         throw error;
       }
       const connection = await resolveConnection(body.connectionId);
+      logRuntimeActivity("resolved prompt connection", body.connectionId);
       if (!connection) {
         sendJson(response, 404, envelope({ error: { message: "Connection not found." } }));
         return true;
@@ -168,6 +172,7 @@ startRuntime({
         return true;
       }
       try {
+        logRuntimeActivity("forwarding prompt to Execution Node", connection.baseUrl);
         const forwarded = await requestJson(`${connection.baseUrl.replace(/\/$/, "")}${executionNodeHttp.paths.execute}`, {
           method: "POST",
           body: { prompt: body.prompt },

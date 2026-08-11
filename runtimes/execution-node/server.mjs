@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { executionNodeHttp } from "@agent-wrangler/contracts/execution-node";
 import { readJsonBody, readPort, routeError, sendJson } from "@agent-wrangler/http-transport";
-import { diagnosticEnvelope, startRuntime } from "@agent-wrangler/runtime-diagnostics";
+import { diagnosticEnvelope, logRuntimeActivity, startRuntime } from "@agent-wrangler/runtime-diagnostics";
 import { inspectProvider, normalizeCodexJsonl, runProcess } from "./codex-process.mjs";
 
 const SLICE = "temporary-codex-cli-execution-node/v1";
@@ -73,6 +73,7 @@ async function capabilities() {
 }
 
 async function execute(prompt) {
+  logRuntimeActivity("preparing Codex CLI prompt execution", `${prompt.length} characters`);
   const observed = await capabilities();
   const provider = observed._resolvedProvider;
   delete observed._resolvedProvider;
@@ -107,6 +108,7 @@ async function execute(prompt) {
     input: prompt,
     timeoutMs,
   });
+  logRuntimeActivity("Codex CLI process completed", `${result.kind}${Number.isInteger(result.exitCode) ? ` exit=${result.exitCode}` : ""}`);
   Object.assign(diagnostics, {
     durationMs: result.durationMs,
     stderr: result.stderr,

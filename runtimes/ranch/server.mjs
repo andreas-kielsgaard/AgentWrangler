@@ -4,7 +4,7 @@ import { authorityIdentityHttp } from "@agent-wrangler/contracts/authority-ident
 import { ranchConnectionsHttp } from "@agent-wrangler/contracts/ranch-connections";
 import { runtimeLinksHttp } from "@agent-wrangler/contracts/runtime-links";
 import { readJsonBody, readPort, requestJson, routeError, sendJson } from "@agent-wrangler/http-transport";
-import { startRuntime } from "@agent-wrangler/runtime-diagnostics";
+import { logRuntimeActivity, startRuntime } from "@agent-wrangler/runtime-diagnostics";
 
 const SLICE = "temporary-execution-node-connection-management/v2";
 const port = readPort("RANCH_PORT", 4101);
@@ -154,17 +154,20 @@ startRuntime({
         if (request.method === "PUT") {
           const body = await readJsonBody(request);
           durableServer = await observeDurableServer(normalizeRuntimeUrl(body.baseUrl));
+          logRuntimeActivity("configured Durable Data link", durableServer.baseUrl);
           sendJson(response, 200, envelope({ link: durableServer }));
           return true;
         }
         if (request.method === "DELETE") {
           durableServer = null;
+          logRuntimeActivity("cleared Durable Data link");
           sendJson(response, 200, envelope({ link: null }));
           return true;
         }
       }
       if (path === runtimeLinksHttp.paths.test("durable-data") && request.method === "POST") {
         const configured = requireDurableServer();
+        logRuntimeActivity("testing Durable Data link", configured.baseUrl);
         const observed = await observeDurableServer(configured.baseUrl);
         if (observed.serverId !== configured.serverId) {
           const error = new Error("Durable Data Server identity changed after configuration.");
@@ -185,6 +188,7 @@ startRuntime({
       }
       const testId = connectionIdFrom(path, "/test");
       if (request.method === "POST" && testId !== null) {
+        logRuntimeActivity("testing Execution Node connection", testId);
         const connection = await getCurrentConnection(testId);
         try {
           const result = await testConnection(connection);

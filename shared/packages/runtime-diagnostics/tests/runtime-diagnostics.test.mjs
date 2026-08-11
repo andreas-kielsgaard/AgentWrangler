@@ -21,3 +21,19 @@ test("runtime diagnostics expose identity and health", async () => {
     await new Promise((resolve) => server.close(resolve));
   }
 });
+
+test("runtime activity shows paired incoming request and response", async () => {
+  const lines = [];
+  const originalLog = console.log;
+  console.log = (line) => lines.push(line);
+  const port = await freePort();
+  const server = startRuntime({ id: "visible", name: "Visible", port });
+  try {
+    await request(`http://127.0.0.1:${port}/identity`);
+    assert.ok(lines.includes("[request]  GET /identity"));
+    assert.ok(lines.includes("[response] 200 GET /identity"));
+  } finally {
+    console.log = originalLog;
+    await new Promise((resolve) => server.close(resolve));
+  }
+});

@@ -2,6 +2,7 @@
 
 Farm is a small presentation application. It currently demonstrates:
 
+- terminal-visible request and relayed cross-runtime activity;
 - independent start, identity, health, and browser asset serving;
 - machine-readable capability advertisement;
 - independent identity and health observation for the other six runtimes;

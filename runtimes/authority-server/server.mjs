@@ -9,7 +9,7 @@ import {
 } from "@agent-wrangler/contracts/authority-router-configuration";
 import { readJsonBody, readPort, routeError, sendJson } from "@agent-wrangler/http-transport";
 import { readJsonFile, writeJsonAtomic } from "@agent-wrangler/json-store";
-import { startRuntime } from "@agent-wrangler/runtime-diagnostics";
+import { logRuntimeActivity, startRuntime } from "@agent-wrangler/runtime-diagnostics";
 
 const SLICE = "temporary-durable-data-server-connections/v1";
 const STORE_SCHEMA = "temporary-durable-data-server-connection-store/v1";
@@ -151,6 +151,7 @@ startRuntime({
             throw conflict("connection name already exists.");
           }
           await commitConnections([...store.connections, connection]);
+          logRuntimeActivity("created Execution Node connection", connection.id);
           sendJson(response, 201, envelope({ connection: publicConnection(connection) }));
           return true;
         }
@@ -177,11 +178,13 @@ startRuntime({
             throw conflict("connection name already exists.");
           }
           await commitConnections(store.connections.map((entry) => entry.id === managementId ? updated : entry));
+          logRuntimeActivity("updated Execution Node connection", managementId);
           sendJson(response, 200, envelope({ connection: publicConnection(updated) }));
           return true;
         }
         if (managementId !== null && request.method === "DELETE") {
           await commitConnections(store.connections.filter((entry) => entry.id !== managementId));
+          logRuntimeActivity("removed Execution Node connection", managementId);
           sendJson(response, 200, envelope({ removedConnectionId: managementId }));
           return true;
         }

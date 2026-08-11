@@ -2,6 +2,7 @@
 
 Execution Node currently demonstrates:
 
+- terminal-visible request and Codex process activity;
 - independent start, identity, health, and a node-owned working directory;
 - machine-readable capability advertisement;
 - bounded non-agent Codex CLI availability observation;

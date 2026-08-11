@@ -2,6 +2,7 @@
 
 Ranch currently demonstrates:
 
+- terminal-visible request, cross-runtime call, link, and connection-test activity;
 - independent start, identity, and health;
 - machine-readable capability advertisement;
 - explicit session-local configuration and testing of its Durable Data Server link;
