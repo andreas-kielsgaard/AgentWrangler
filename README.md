@@ -12,7 +12,7 @@ Ranch -> Durable Data Server -> Execution Node: connection observation
 Farm -> Router -> Durable Data Server -> Execution Node: prompt execution
 ```
 
-Run all processes with `launch-all.bat`, which opens one maximized Windows Terminal window with seven visible panes, or use the package-local `npm start` commands. Open Farm at <http://127.0.0.1:4105>. Default tests use only a deterministic fake Codex provider.
+Run all processes with `launch-all.bat`, which opens one maximized Windows Terminal window with seven runtime panes and a full-width command pane, or use the package-local `npm start` commands. Open Farm at <http://127.0.0.1:4105>. Default tests use only a deterministic fake Codex provider.
 
 The launcher does not connect the runtimes. Use the provisional repository CLI to inspect and assemble the current path:
 
