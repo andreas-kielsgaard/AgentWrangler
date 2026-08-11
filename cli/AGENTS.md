@@ -3,3 +3,13 @@
 Maintain [CAPABILITIES.md](CAPABILITIES.md) when intentionally supported CLI behavior changes. Keep the CLI a replaceable client of declared runtime HTTP interfaces; do not import runtime source or storage.
 
 Prefer concrete capability commands over a generic remote-procedure command. Tests belong under `tests/` and should prove supported happy flows without launching a live provider.
+
+## Command design
+
+- Put runtime-owned capabilities beneath the runtime receiving the request, such as `aw ranch node observe` and `aw router prompt send`.
+- Put operations over the runtime collection beneath `aw runtimes`.
+- Keep one predictable command grammar. Do not retain legacy aliases unless explicitly requested.
+- Treat help as part of the interface: use clear descriptions, concrete examples, uppercase placeholders, valid choices, and focused command help.
+- Keep concise human output separate from structured `--output json`; diagnostics and failures belong on stderr with nonzero exit codes.
+- Keep the CLI thin over declared runtime contracts. Do not duplicate runtime behavior in command handlers.
+- Test command ownership, grammar, help, output shape, and exit behavior for intentionally supported commands.
