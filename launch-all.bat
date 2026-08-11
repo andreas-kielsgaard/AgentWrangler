@@ -26,7 +26,7 @@ wt.exe -M -w new ^
   new-tab --title "Agent Wrangler CLI" --suppressApplicationTitle -d "%PROJECT_ROOT%" ^
   ; split-pane -V -s .6 --title "Durable Data" --suppressApplicationTitle -d "%PROJECT_ROOT%" cmd /k "npm start --workspace @agent-wrangler/authority-server" ^
   ; move-focus left ^
-  ; split-pane -H -s .25 --title "Execution Node" --suppressApplicationTitle -d "%PROJECT_ROOT%" cmd /k "npm start --workspace @agent-wrangler/execution-node" ^
+  ; split-pane -H -s .33 --title "Execution Node" --suppressApplicationTitle -d "%PROJECT_ROOT%" cmd /k "npm start --workspace @agent-wrangler/execution-node" ^
   ; move-focus up ^
   ; move-focus right ^
   ; split-pane -V -s .5 --title "Router" --suppressApplicationTitle -d "%PROJECT_ROOT%" cmd /k "npm start --workspace @agent-wrangler/router" ^
