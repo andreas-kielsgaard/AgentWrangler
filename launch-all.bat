@@ -25,7 +25,7 @@ rem Build a 40/60 window: CLI and Execution Node on the left, six runtimes on th
 wt.exe -M -w new ^
   new-tab --title "Agent Wrangler CLI" --suppressApplicationTitle -d "%PROJECT_ROOT%" ^
   ; split-pane -V -s .6 --title "Durable Data" --suppressApplicationTitle -d "%PROJECT_ROOT%" cmd /k "npm start --workspace @agent-wrangler/authority-server" ^
-  ; move-focus left ^
+  ; move-focus first ^
   ; split-pane -H -s .33 --title "Execution Node" --suppressApplicationTitle -d "%PROJECT_ROOT%" cmd /k "npm start --workspace @agent-wrangler/execution-node" ^
   ; move-focus up ^
   ; move-focus right ^
