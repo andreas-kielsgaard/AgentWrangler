@@ -17,13 +17,13 @@ Run all processes with `launch-all.bat`. It opens one maximized Windows Terminal
 The launcher does not connect the runtimes. Use the provisional repository CLI to inspect and assemble the current path:
 
 ```text
-aw status
-aw capabilities ranch
-aw capabilities durable-data
+aw runtime status
+aw runtime capabilities ranch
+aw runtime capabilities durable-data
 aw link set ranch durable-data
 aw link set router durable-data
-aw nodes add --name "Local Codex" --url http://127.0.0.1:4110
-aw nodes observe <id>
+aw node add --name "Local Codex" --url http://127.0.0.1:4110
+aw node observe <id>
 aw prompt send --connection <id> "Respond with hello"
 ```
 

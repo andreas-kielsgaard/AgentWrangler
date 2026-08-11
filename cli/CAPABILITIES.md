@@ -2,6 +2,9 @@
 
 The provisional `aw` CLI currently demonstrates:
 
+- a consistent `noun verb` grammar across runtime, link, node, and prompt concepts;
+- layered help, familiar long options, actionable errors, and a version command;
+- separate concise text and structured JSON output for human and programmatic use;
 - launching one runtime or the existing process-only all-runtime launcher;
 - CLI-owned runtime target addresses and identity/health status;
 - runtime-advertised capability inspection;
@@ -11,4 +14,4 @@ The provisional `aw` CLI currently demonstrates:
 
 Implementation: `src/`. Happy-flow tests: `tests/cli.test.mjs`.
 
-The command names, configuration path, HTTP interfaces, and `aw` executable name are temporary. The CLI does not import runtime source, own product configuration, or provide Wrangle, Gallery, Engine, session, extension, or authority behavior.
+The configuration path, HTTP interfaces, and `aw` executable name are temporary. The CLI does not import runtime source, own product configuration, or provide Wrangle, Gallery, Engine, session, extension, or authority behavior.

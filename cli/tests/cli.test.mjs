@@ -34,9 +34,11 @@ test("CLI targets a runtime and reports its status and advertised capabilities",
     return { statusCode: 404, body: {} };
   });
   try {
-    await runCli(["target", "set", "ranch", ranch.baseUrl], configurationPath);
-    assert.match((await runCli(["status", "ranch"], configurationPath)).stdout, /ranch\s+reachable/);
-    assert.match((await runCli(["capabilities", "ranch"], configurationPath)).stdout, /example\.operation/);
+    await runCli(["runtime", "target", "set", "ranch", ranch.baseUrl], configurationPath);
+    assert.match((await runCli(["runtime", "status", "ranch"], configurationPath)).stdout, /ranch\s+reachable/);
+    assert.match((await runCli(["runtime", "capabilities", "ranch"], configurationPath)).stdout, /example\.operation/);
+    const structured = JSON.parse((await runCli(["runtime", "status", "ranch", "--output", "json"], configurationPath)).stdout);
+    assert.deepEqual(structured, [{ runtime: "ranch", status: "reachable", url: ranch.baseUrl }]);
   } finally {
     await ranch.close();
     await removeTemporaryDirectory(directory);
@@ -57,11 +59,11 @@ test("CLI explicitly configures and tests a runtime link", async () => {
   });
   const data = await startTestServer(() => ({ body: {} }));
   try {
-    await runCli(["target", "set", "ranch", source.baseUrl], configurationPath);
-    await runCli(["target", "set", "durable-data", data.baseUrl], configurationPath);
-    assert.match((await runCli(["link", "set", "ranch", "durable-data"], configurationPath)).stdout, /fixture/);
+    await runCli(["runtime", "target", "set", "ranch", source.baseUrl], configurationPath);
+    await runCli(["runtime", "target", "set", "durable-data", data.baseUrl], configurationPath);
+    assert.match((await runCli(["link", "set", "ranch", "durable-data", "--output", "json"], configurationPath)).stdout, /fixture/);
     assert.equal(source.requests[0].body.baseUrl, data.baseUrl);
-    assert.match((await runCli(["link", "test", "ranch", "durable-data"], configurationPath)).stdout, /reachable/);
+    assert.match((await runCli(["link", "test", "ranch", "durable-data", "--output", "json"], configurationPath)).stdout, /reachable/);
   } finally {
     await Promise.all([source.close(), data.close()]);
     await removeTemporaryDirectory(directory);
@@ -78,10 +80,10 @@ test("CLI manages a node through Ranch and submits a prompt through Router", asy
     ? { body: { output: { text: `fixture: ${body.prompt}` } } }
     : { statusCode: 404, body: {} });
   try {
-    await runCli(["target", "set", "ranch", ranch.baseUrl], configurationPath);
-    await runCli(["target", "set", "router", router.baseUrl], configurationPath);
+    await runCli(["runtime", "target", "set", "ranch", ranch.baseUrl], configurationPath);
+    await runCli(["runtime", "target", "set", "router", router.baseUrl], configurationPath);
     assert.match((await runCli([
-      "nodes", "add", "--id", "node", "--name", "Local", "--url", "http://127.0.0.1:4110",
+      "node", "add", "--id", "node", "--name", "Local", "--url", "http://127.0.0.1:4110", "--output", "json",
     ], configurationPath)).stdout, /"id": "node"/);
     assert.deepEqual(ranch.requests[0].body, {
       name: "Local",
@@ -95,6 +97,24 @@ test("CLI manages a node through Ranch and submits a prompt through Router", asy
     assert.deepEqual(router.requests[0].body, { connectionId: "node", prompt: "hello from cli" });
   } finally {
     await Promise.all([ranch.close(), router.close()]);
+    await removeTemporaryDirectory(directory);
+  }
+});
+
+test("CLI grammar is discoverable and rejects removed legacy commands", async () => {
+  const directory = await makeTemporaryDirectory("agent-wrangler-cli-language-");
+  const configurationPath = join(directory, "targets.json");
+  try {
+    assert.match((await runCli(["--help"], configurationPath)).stdout, /Usage: aw <noun> <verb>/);
+    assert.match((await runCli(["node", "--help"], configurationPath)).stdout, /aw node add --name/);
+    assert.match((await runCli(["node", "add", "--help"], configurationPath)).stdout, /aw node add --name/);
+    assert.equal((await runCli(["--version"], configurationPath)).stdout.trim(), "0.0.0");
+    await assert.rejects(runCli(["nodes", "list"], configurationPath), (error) => {
+      assert.notEqual(error.code, 0);
+      assert.match(error.stderr, /Unknown noun 'nodes'/);
+      return true;
+    });
+  } finally {
     await removeTemporaryDirectory(directory);
   }
 });

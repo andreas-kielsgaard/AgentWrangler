@@ -19,20 +19,66 @@ import {
 } from "./configuration.mjs";
 
 const argv = process.argv.slice(2);
+const VERSION = "0.0.0";
 
-function usage() {
+function usage(topic) {
+  const topicHelp = {
+    runtime: `Usage: aw runtime <launch|status|targets|target|capabilities> [arguments]
+
+  aw runtime launch <all|runtime>
+  aw runtime status [runtime|all] [--output text|json]
+  aw runtime targets [--output text|json]
+  aw runtime target set <runtime> <url> [--output text|json]
+  aw runtime target reset <runtime> [--output text|json]
+  aw runtime capabilities <runtime|all> [--output text|json]
+`,
+    link: `Usage: aw link <list|set|clear|test> [arguments]
+
+  aw link list [--output text|json]
+  aw link set <ranch|router> durable-data [--output text|json]
+  aw link clear <ranch|router> durable-data [--output text|json]
+  aw link test <ranch|router> durable-data [--output text|json]
+`,
+    node: `Usage: aw node <list|show|add|enable|disable|remove|observe> [arguments]
+
+  aw node list [--output text|json]
+  aw node show <id> [--output text|json]
+  aw node add --name <name> --url <url> [--id <id>] [--output text|json]
+  aw node enable|disable|remove|observe <id> [--output text|json]
+`,
+    prompt: `Usage: aw prompt send --connection <id> [prompt] [--output text|json]
+
+Prompt text may be supplied as arguments or through stdin.
+`,
+  };
+  if (topicHelp[topic]) return topicHelp[topic];
   return `Agent Wrangler CLI (working name: aw)
 
-  aw launch <all|runtime>
-  aw status [runtime]
-  aw targets
-  aw target <set runtime url|reset runtime>
-  aw capabilities <runtime|all>
-  aw links
-  aw link <set|clear|test> <ranch|router> durable-data
-  aw nodes <list|show|add|enable|disable|remove|observe> [...]
-  aw prompt send --connection <id> [prompt]
+Usage: aw <noun> <verb> [arguments] [options]
+
+Nouns:
+  runtime   Launch and inspect runtimes and CLI targets
+  link      Configure and test supported runtime links
+  node      Manage Execution Node connections through Ranch
+  prompt    Send a prompt through Router
+
+Global options:
+  -h, --help       Show help
+  -v, --version    Show the CLI version
+
+Use 'aw <noun> --help' for detailed commands and examples.
 `;
+}
+
+function parseOutput(args) {
+  const index = args.indexOf("--output");
+  if (index < 0) return { args, output: "text" };
+  const output = args[index + 1];
+  if (!new Set(["text", "json"]).has(output)) throw new Error("--output must be 'text' or 'json'.");
+  return {
+    args: args.filter((_value, itemIndex) => itemIndex !== index && itemIndex !== index + 1),
+    output,
+  };
 }
 
 function option(args, name, required = false) {
@@ -89,8 +135,9 @@ function run(command, args) {
   });
 }
 
-async function status(names) {
+async function status(names, output = "text") {
   const { targets } = await loadTargets();
+  const records = [];
   for (const name of names) {
     const target = targets[name];
     if (!target) throw new Error(`Unknown runtime '${name}'.`);
@@ -100,28 +147,37 @@ async function status(names) {
         call(target.url, runtimeDiagnosticsHttp.paths.health),
       ]);
       const matches = identity.runtime?.id === target.id;
-      process.stdout.write(`${name.padEnd(15)} ${matches && health.status === "ok" ? "reachable" : "unexpected"}  ${target.url}\n`);
+      records.push({ runtime: name, status: matches && health.status === "ok" ? "reachable" : "unexpected", url: target.url });
     } catch (error) {
-      process.stdout.write(`${name.padEnd(15)} unavailable ${target.url}  ${error.message}\n`);
+      records.push({ runtime: name, status: "unavailable", url: target.url, error: error.message });
     }
+  }
+  if (output === "json") return printJson(records);
+  for (const record of records) {
+    process.stdout.write(`${record.runtime.padEnd(15)} ${record.status.padEnd(11)} ${record.url}${record.error ? `  ${record.error}` : ""}\n`);
   }
 }
 
-async function capabilities(names) {
+async function capabilities(names, output = "text") {
   const { targets } = await loadTargets();
+  const records = [];
   for (const name of names) {
     const target = targets[name];
     if (!target) throw new Error(`Unknown runtime '${name}'.`);
     const body = await call(target.url, runtimeCapabilitiesHttp.paths.capabilities);
-    process.stdout.write(`${target.name} — ${target.url}\n`);
     const advertised = body.capabilities;
     const operations = Array.isArray(advertised) ? advertised : advertised?.operations ?? [];
+    const dependencies = advertised?.dependencies ?? [];
+    records.push({ runtime: name, name: target.name, url: target.url, operations, dependencies });
+    if (output === "json") continue;
+    process.stdout.write(`${target.name} — ${target.url}\n`);
     for (const operation of operations) process.stdout.write(`  ${operation}\n`);
-    for (const dependency of advertised?.dependencies ?? []) {
+    for (const dependency of dependencies) {
       process.stdout.write(`  dependency:${dependency.id} ${dependency.configured ? "configured" : "not configured"}\n`);
     }
     process.stdout.write("\n");
   }
+  if (output === "json") printJson(records);
 }
 
 function requireLink(source, target) {
@@ -130,7 +186,7 @@ function requireLink(source, target) {
   }
 }
 
-async function link(action, source, target) {
+async function link(action, source, target, output = "text") {
   requireLink(source, target);
   const { targets } = await loadTargets();
   const path = action === "test" ? runtimeLinksHttp.paths.test(target) : runtimeLinksHttp.paths.link(target);
@@ -141,25 +197,44 @@ async function link(action, source, target) {
       : action === "test"
         ? { method: "POST", body: {} }
         : {};
-  printJson(await call(targets[source].url, path, options));
-}
-
-async function listLinks() {
-  const { targets } = await loadTargets();
-  for (const source of ["ranch", "router"]) {
-    try {
-      const body = await call(targets[source].url, runtimeLinksHttp.paths.link("durable-data"));
-      process.stdout.write(`${source} -> durable-data  ${body.link ? `${body.link.baseUrl} (${body.link.serverId})` : "not configured"}\n`);
-    } catch (error) {
-      process.stdout.write(`${source} -> durable-data  unavailable: ${error.message}\n`);
-    }
+  const body = await call(targets[source].url, path, options);
+  if (output === "json") return printJson(body);
+  if (action === "test") {
+    process.stdout.write(`${source} -> ${target}  ${body.test?.reachable ? "reachable" : "unreachable"}\n`);
+  } else {
+    process.stdout.write(`${source} -> ${target}  ${action === "clear" ? "cleared" : "configured"}\n`);
   }
 }
 
-async function nodes(action, args) {
+async function listLinks(output = "text") {
+  const { targets } = await loadTargets();
+  const records = [];
+  for (const source of ["ranch", "router"]) {
+    try {
+      const body = await call(targets[source].url, runtimeLinksHttp.paths.link("durable-data"));
+      records.push({ source, target: "durable-data", status: body.link ? "configured" : "not-configured", link: body.link ?? null });
+    } catch (error) {
+      records.push({ source, target: "durable-data", status: "unavailable", link: null, error: error.message });
+    }
+  }
+  if (output === "json") return printJson(records);
+  for (const record of records) {
+    process.stdout.write(`${record.source} -> ${record.target}  ${record.link ? `${record.link.baseUrl} (${record.link.serverId})` : record.status}${record.error ? `: ${record.error}` : ""}\n`);
+  }
+}
+
+async function nodes(action, args, output = "text") {
   const { targets } = await loadTargets();
   const ranchUrl = targets.ranch.url;
-  if (action === "list") return printJson(await call(ranchUrl, ranchConnectionsHttp.paths.collection));
+  if (action === "list") {
+    const body = await call(ranchUrl, ranchConnectionsHttp.paths.collection);
+    if (output === "json") return printJson(body);
+    if (!body.connections?.length) return process.stdout.write("No Execution Node connections configured.\n");
+    for (const connection of body.connections) {
+      process.stdout.write(`${connection.id.padEnd(20)} ${connection.enabled ? "enabled " : "disabled"} ${connection.baseUrl}\n`);
+    }
+    return;
+  }
   if (action === "add") {
     const body = {
       name: option(args, "--name", true),
@@ -167,34 +242,58 @@ async function nodes(action, args) {
     };
     const id = option(args, "--id");
     if (id) body.id = id;
-    return printJson(await call(ranchUrl, ranchConnectionsHttp.paths.collection, { method: "POST", body }));
+    const result = await call(ranchUrl, ranchConnectionsHttp.paths.collection, { method: "POST", body });
+    if (output === "json") return printJson(result);
+    process.stdout.write(`${result.connection.id} added at ${result.connection.baseUrl}\n`);
+    return;
   }
   const id = args[0];
   if (!id) throw new Error("Connection id is required.");
-  if (action === "show") return printJson(await call(ranchUrl, ranchConnectionsHttp.paths.connection(id)));
+  if (action === "show") {
+    const result = await call(ranchUrl, ranchConnectionsHttp.paths.connection(id));
+    if (output === "json") return printJson(result);
+    const connection = result.connection;
+    process.stdout.write(`${connection.id}\n  name: ${connection.name}\n  url: ${connection.baseUrl}\n  enabled: ${connection.enabled}\n`);
+    return;
+  }
   if (action === "enable" || action === "disable") {
-    return printJson(await call(ranchUrl, ranchConnectionsHttp.paths.connection(id), {
+    const result = await call(ranchUrl, ranchConnectionsHttp.paths.connection(id), {
       method: "PUT",
       body: { enabled: action === "enable" },
-    }));
+    });
+    if (output === "json") return printJson(result);
+    process.stdout.write(`${id} ${action}d\n`);
+    return;
   }
-  if (action === "remove") return printJson(await call(ranchUrl, ranchConnectionsHttp.paths.connection(id), { method: "DELETE" }));
-  if (action === "observe") return printJson(await call(ranchUrl, ranchConnectionsHttp.paths.test(id), { method: "POST", body: {} }));
+  if (action === "remove") {
+    const result = await call(ranchUrl, ranchConnectionsHttp.paths.connection(id), { method: "DELETE" });
+    if (output === "json") return printJson(result);
+    process.stdout.write(`${id} removed\n`);
+    return;
+  }
+  if (action === "observe") {
+    const result = await call(ranchUrl, ranchConnectionsHttp.paths.test(id), { method: "POST", body: {} });
+    if (output === "json") return printJson(result);
+    process.stdout.write(`${id} ${result.test?.reachable ? "reachable" : "unreachable"}\n`);
+    return;
+  }
   throw new Error(`Unknown nodes action '${action}'.`);
 }
 
-async function prompt(args) {
+async function prompt(args, output = "text") {
   if (args[0] !== "send") throw new Error("Use 'aw prompt send'.");
   const connectionId = option(args, "--connection", true);
   const literal = withoutOptions(args.slice(1), ["--connection"]).join(" ").trim();
   const promptText = literal || (await readFile(0, "utf8")).trim();
   if (!promptText) throw new Error("Prompt text is required as an argument or stdin.");
   const { targets } = await loadTargets();
-  printJson(await call(targets.router.url, routerPromptsHttp.paths.execute, {
+  const result = await call(targets.router.url, routerPromptsHttp.paths.execute, {
     method: "POST",
     body: { connectionId, prompt: promptText },
     timeoutMs: 130_000,
-  }));
+  });
+  if (output === "json") return printJson(result);
+  process.stdout.write(`${result.output?.text ?? "Prompt completed without text output."}\n`);
 }
 
 async function main() {
@@ -203,30 +302,78 @@ async function main() {
     process.stdout.write(usage());
     return;
   }
-  if (command === "launch") return await launch(args[0]);
-  if (command === "status") return await status(args.length ? args : Object.keys(runtimeDefinitions));
-  if (command === "targets") {
-    const { targets } = await loadTargets();
-    for (const [name, target] of Object.entries(targets)) process.stdout.write(`${name.padEnd(15)} ${target.url}\n`);
+  if (new Set(["--version", "-v"]).has(command)) {
+    process.stdout.write(`${VERSION}\n`);
     return;
   }
-  if (command === "target" && args[0] === "set") {
-    process.stdout.write(`${args[1]} ${await setTarget(args[1], args[2])}\n`);
+  if (!new Set(["runtime", "link", "node", "prompt"]).has(command)) {
+    throw new Error(`Unknown noun '${command}'. Run 'aw --help' to list available nouns.`);
+  }
+  if (args.some((argument) => new Set(["help", "--help", "-h"]).has(argument))) {
+    process.stdout.write(usage(command));
     return;
   }
-  if (command === "target" && args[0] === "reset") {
-    process.stdout.write(`${args[1]} ${await resetTarget(args[1])}\n`);
-    return;
+
+  if (command === "runtime") {
+    const [action, ...rawArguments] = args;
+    if (!action) throw new Error("Runtime action is required. Run 'aw runtime --help'.");
+    const parsed = parseOutput(rawArguments);
+    if (action === "launch") {
+      if (!parsed.args[0]) throw new Error("Runtime name or 'all' is required. Run 'aw runtime --help'.");
+      return await launch(parsed.args[0]);
+    }
+    if (action === "status") {
+      const requested = parsed.args[0] ?? "all";
+      return await status(requested === "all" ? Object.keys(runtimeDefinitions) : [requested], parsed.output);
+    }
+    if (action === "targets") {
+      const { targets } = await loadTargets();
+      const records = Object.entries(targets).map(([runtime, target]) => ({ runtime, url: target.url }));
+      if (parsed.output === "json") return printJson(records);
+      for (const record of records) process.stdout.write(`${record.runtime.padEnd(15)} ${record.url}\n`);
+      return;
+    }
+    if (action === "target" && parsed.args[0] === "set") {
+      if (!parsed.args[1] || !parsed.args[2]) throw new Error("Use 'aw runtime target set <runtime> <url>'.");
+      const record = { runtime: parsed.args[1], url: await setTarget(parsed.args[1], parsed.args[2]) };
+      if (parsed.output === "json") return printJson(record);
+      process.stdout.write(`${record.runtime} ${record.url}\n`);
+      return;
+    }
+    if (action === "target" && parsed.args[0] === "reset") {
+      if (!parsed.args[1]) throw new Error("Use 'aw runtime target reset <runtime>'.");
+      const record = { runtime: parsed.args[1], url: await resetTarget(parsed.args[1]) };
+      if (parsed.output === "json") return printJson(record);
+      process.stdout.write(`${record.runtime} ${record.url}\n`);
+      return;
+    }
+    if (action === "capabilities") {
+      const requested = parsed.args[0] ?? "all";
+      return await capabilities(requested === "all" ? Object.keys(runtimeDefinitions) : [requested], parsed.output);
+    }
+    throw new Error(`Unknown runtime action '${action}'. Run 'aw runtime --help'.`);
   }
-  if (command === "capabilities") {
-    const requested = args[0] ?? "all";
-    return await capabilities(requested === "all" ? Object.keys(runtimeDefinitions) : [requested]);
+
+  if (command === "link") {
+    const [action, ...rawArguments] = args;
+    if (!action) throw new Error("Link action is required. Run 'aw link --help'.");
+    const parsed = parseOutput(rawArguments);
+    if (action === "list") return await listLinks(parsed.output);
+    if (!new Set(["set", "clear", "test"]).has(action)) {
+      throw new Error(`Unknown link action '${action}'. Run 'aw link --help'.`);
+    }
+    return await link(action, parsed.args[0], parsed.args[1], parsed.output);
   }
-  if (command === "links") return await listLinks();
-  if (command === "link") return await link(args[0], args[1], args[2]);
-  if (command === "nodes") return await nodes(args[0], args.slice(1));
-  if (command === "prompt") return await prompt(args);
-  throw new Error(`Unknown command '${command}'.\n\n${usage()}`);
+
+  if (command === "node") {
+    const [action, ...rawArguments] = args;
+    if (!action) throw new Error("Node action is required. Run 'aw node --help'.");
+    const parsed = parseOutput(rawArguments);
+    return await nodes(action, parsed.args, parsed.output);
+  }
+
+  const parsed = parseOutput(args);
+  return await prompt(parsed.args, parsed.output);
 }
 
 main().catch((error) => {
