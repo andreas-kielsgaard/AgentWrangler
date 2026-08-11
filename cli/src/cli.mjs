@@ -21,167 +21,99 @@ import {
 const argv = process.argv.slice(2);
 const VERSION = "0.0.0";
 
-function usage(topic, action) {
-  const outputOption = "  --output <text|json>  Choose human-readable or structured output.";
-  const focusedHelp = {
-    "runtime:launch": `Start runtime processes.
+function usage(owner, subject) {
+  const runtimeNames = Object.keys(runtimeDefinitions).join(", ");
+  const common = `Common runtime commands:
+  launch                         Start this runtime
+  status [--output text|json]    Check reachability
+  capabilities [--output text|json]
+  target show [--output text|json]
+  target set <URL> [--output text|json]
+  target reset [--output text|json]`;
+
+  if (owner === "runtimes") return `Operate on the runtime collection.
 
 Usage:
-  aw runtime launch all
-  aw runtime launch <NAME>
-
-Examples:
-  aw runtime launch all
-  aw runtime launch ranch
-`,
-    "runtime:status": `Check whether runtimes are reachable.
-
-Usage:
-  aw runtime status [NAME] [--output text|json]
-
-Omit NAME to check every runtime.
-
-Options:
-${outputOption}
-
-Example:
-  aw runtime status ranch
-`,
-    "runtime:target": `Inspect or change the addresses used by this CLI.
-
-Usage:
-  aw runtime target list [--output text|json]
-  aw runtime target set <NAME> <URL> [--output text|json]
-  aw runtime target reset <NAME> [--output text|json]
-
-Examples:
-  aw runtime target list
-  aw runtime target set ranch http://127.0.0.1:4101
-`,
-    "runtime:capabilities": `Show capabilities advertised by runtimes.
-
-Usage:
-  aw runtime capabilities [NAME] [--output text|json]
-
-Omit NAME to inspect every runtime.
-
-Options:
-${outputOption}
-`,
-    "link:list": `List the currently supported runtime links.
-
-Usage:
-  aw link list [--output text|json]
-`,
-    "link:set": `Configure a supported runtime link.
-
-Usage:
-  aw link set <ranch|router> durable-data [--output text|json]
-
-Example:
-  aw link set ranch durable-data
-`,
-    "link:clear": `Clear a supported runtime link.
-
-Usage:
-  aw link clear <ranch|router> durable-data [--output text|json]
-`,
-    "link:test": `Test a configured runtime link.
-
-Usage:
-  aw link test <ranch|router> durable-data [--output text|json]
-`,
-    "node:add": `Register an Execution Node connection through Ranch.
-
-Usage:
-  aw node add --name <NAME> --url <URL> [--id <ID>] [--output text|json]
-
-Example:
-  aw node add --id local-codex --name "Local Codex" --url http://127.0.0.1:4110
-`,
-    "prompt:send": `Send a prompt through Router.
-
-Usage:
-  aw prompt send --connection <ID> [PROMPT] [--output text|json]
-
-PROMPT may instead be supplied through stdin.
-`,
-  };
-  if (focusedHelp[`${topic}:${action}`]) return focusedHelp[`${topic}:${action}`];
-
-  const topicHelp = {
-    runtime: `Manage runtime processes and the addresses used by this CLI.
-
-Usage:
-  aw runtime <COMMAND> [arguments]
+  aw runtimes <COMMAND> [options]
 
 Commands:
-  launch all                 Start all seven runtimes
-  launch <NAME>              Start one runtime
-  status [NAME]              Check one or all runtimes
-  target list                Show configured runtime addresses
-  target set <NAME> <URL>    Set one CLI target address
-  target reset <NAME>        Restore one default address
-  capabilities [NAME]        Show advertised capabilities
+  launch                         Start all seven runtimes
+  status [--output text|json]    Check every runtime
+  capabilities [--output text|json]
+  targets [--output text|json]   Show every CLI target address
 
 Runtime names:
-  ranch, gallery, router, engine, farm, durable-data, execution-node
+  ${runtimeNames}
+`;
 
-Run 'aw runtime <COMMAND> --help' for focused help.
-`,
-    link: `Manage explicit links between runtimes.
+  if (owner === "ranch" && subject === "node") return `Manage Execution Node connections through Ranch.
 
 Usage:
-  aw link <COMMAND> [arguments]
+  aw ranch node <COMMAND> [arguments]
 
 Commands:
-  list                         Show supported links
-  set <ranch|router> durable-data
-  clear <ranch|router> durable-data
-  test <ranch|router> durable-data
+  list
+  show <ID>
+  add --name <NAME> --url <URL> [--id <ID>]
+  enable <ID>
+  disable <ID>
+  remove <ID>
+  observe <ID>                   Test identity, health, and capabilities
 
-Run 'aw link <COMMAND> --help' for focused help.
-`,
-    node: `Manage Execution Node connections through Ranch.
-
-Usage:
-  aw node <COMMAND> [arguments]
-
-Commands:
-  list              List connections
-  show <ID>         Show one connection
-  add [options]     Register a connection
-  enable <ID>       Enable a connection
-  disable <ID>      Disable a connection
-  remove <ID>       Remove a connection
-  observe <ID>      Test identity, health, and capabilities
-
-Run 'aw node <COMMAND> --help' for focused help.
-`,
-    prompt: `Send prompts through Router.
+Add --output json to receive structured output.
+`;
+  if (new Set(["ranch", "router"]).has(owner) && subject === "link") return `Manage ${owner}'s link to the Durable Data Server.
 
 Usage:
-  aw prompt send --connection <ID> [PROMPT] [--output text|json]
+  aw ${owner} link durable-data <show|set|clear|test> [--output text|json]
 
-Run 'aw prompt send --help' for focused help.
-`,
-  };
-  if (topicHelp[topic]) return topicHelp[topic];
+Examples:
+  aw ${owner} link durable-data set
+  aw ${owner} link durable-data test
+`;
+  if (owner === "router" && subject === "prompt") return `Send a prompt through Router.
+
+Usage:
+  aw router prompt send --connection <ID> [PROMPT] [--output text|json]
+
+PROMPT may instead be supplied through stdin.
+`;
+
+  if (runtimeDefinitions[owner]) {
+    const owned = owner === "ranch"
+      ? "\n\nRanch capabilities:\n  node <COMMAND>                 Manage and observe Execution Node connections\n  link durable-data <ACTION>    Manage Ranch's Durable Data link"
+      : owner === "router"
+        ? "\n\nRouter capabilities:\n  prompt send [options]         Route a prompt\n  link durable-data <ACTION>    Manage Router's Durable Data link"
+        : "";
+    return `${runtimeDefinitions[owner].name}
+
+Usage:
+  aw ${owner} <COMMAND> [arguments]
+
+${common}${owned}
+
+Run 'aw ${owner} <COMMAND> --help' for focused help.
+`;
+  }
+
   return `Agent Wrangler CLI (working name: aw)
 
-Usage: aw <noun> <verb> [arguments] [options]
+Usage:
+  aw runtimes <COMMAND>         Operate on all runtimes
+  aw <RUNTIME> <COMMAND>        Operate through one runtime
 
-Nouns:
-  runtime   Launch and inspect runtimes and CLI targets
-  link      Configure and test supported runtime links
-  node      Manage Execution Node connections through Ranch
-  prompt    Send a prompt through Router
+Runtimes:
+  ${runtimeNames}
 
-Global options:
-  -h, --help       Show help
-  -v, --version    Show the CLI version
+Examples:
+  aw runtimes status
+  aw ranch node list
+  aw ranch link durable-data set
+  aw router prompt send --connection local-codex "Hello"
 
-Run 'aw <noun> --help' to see its commands.
+Options:
+  -h, --help                    Show contextual help
+  -v, --version                 Show the CLI version
 `;
 }
 
@@ -314,27 +246,14 @@ async function link(action, source, target, output = "text") {
         : {};
   const body = await call(targets[source].url, path, options);
   if (output === "json") return printJson(body);
+  if (action === "show") {
+    process.stdout.write(`${source} -> ${target}  ${body.link ? `${body.link.baseUrl} (${body.link.serverId})` : "not configured"}\n`);
+    return;
+  }
   if (action === "test") {
     process.stdout.write(`${source} -> ${target}  ${body.test?.reachable ? "reachable" : "unreachable"}\n`);
   } else {
     process.stdout.write(`${source} -> ${target}  ${action === "clear" ? "cleared" : "configured"}\n`);
-  }
-}
-
-async function listLinks(output = "text") {
-  const { targets } = await loadTargets();
-  const records = [];
-  for (const source of ["ranch", "router"]) {
-    try {
-      const body = await call(targets[source].url, runtimeLinksHttp.paths.link("durable-data"));
-      records.push({ source, target: "durable-data", status: body.link ? "configured" : "not-configured", link: body.link ?? null });
-    } catch (error) {
-      records.push({ source, target: "durable-data", status: "unavailable", link: null, error: error.message });
-    }
-  }
-  if (output === "json") return printJson(records);
-  for (const record of records) {
-    process.stdout.write(`${record.source} -> ${record.target}  ${record.link ? `${record.link.baseUrl} (${record.link.serverId})` : record.status}${record.error ? `: ${record.error}` : ""}\n`);
   }
 }
 
@@ -396,7 +315,7 @@ async function nodes(action, args, output = "text") {
 }
 
 async function prompt(args, output = "text") {
-  if (args[0] !== "send") throw new Error("Use 'aw prompt send'.");
+  if (args[0] !== "send") throw new Error("Use 'aw router prompt send'.");
   const connectionId = option(args, "--connection", true);
   const literal = withoutOptions(args.slice(1), ["--connection"]).join(" ").trim();
   const promptText = literal || (await readFile(0, "utf8")).trim();
@@ -412,83 +331,93 @@ async function prompt(args, output = "text") {
 }
 
 async function main() {
-  const [command, ...args] = argv;
-  if (!command || new Set(["help", "--help", "-h"]).has(command)) {
+  const [owner, ...args] = argv;
+  if (!owner || new Set(["help", "--help", "-h"]).has(owner)) {
     process.stdout.write(usage());
     return;
   }
-  if (new Set(["--version", "-v"]).has(command)) {
+  if (new Set(["--version", "-v"]).has(owner)) {
     process.stdout.write(`${VERSION}\n`);
     return;
   }
-  if (!new Set(["runtime", "link", "node", "prompt"]).has(command)) {
-    throw new Error(`Unknown noun '${command}'. Run 'aw --help' to list available nouns.`);
+  if (owner !== "runtimes" && !runtimeDefinitions[owner]) {
+    throw new Error(`Unknown runtime '${owner}'. Choose one of: runtimes, ${Object.keys(runtimeDefinitions).join(", ")}.`);
   }
-  if (args.some((argument) => new Set(["help", "--help", "-h"]).has(argument))) {
-    process.stdout.write(usage(command, args[0]));
+  const helpRequested = args.some((argument) => new Set(["help", "--help", "-h"]).has(argument));
+  if (helpRequested) {
+    process.stdout.write(usage(owner, args[0]));
     return;
   }
 
-  if (command === "runtime") {
+  if (owner === "runtimes") {
     const [action, ...rawArguments] = args;
-    if (!action) throw new Error("Runtime action is required. Run 'aw runtime --help'.");
+    if (!action) throw new Error("Collection action is required. Run 'aw runtimes --help'.");
     const parsed = parseOutput(rawArguments);
-    if (action === "launch") {
-      if (!parsed.args[0]) throw new Error("Runtime name or 'all' is required. Run 'aw runtime --help'.");
-      return await launch(parsed.args[0]);
-    }
-    if (action === "status") {
-      const requested = parsed.args[0] ?? "all";
-      return await status(requested === "all" ? Object.keys(runtimeDefinitions) : [requested], parsed.output);
-    }
-    if (action === "target" && parsed.args[0] === "list") {
+    if (action === "launch") return await launch("all");
+    if (action === "status") return await status(Object.keys(runtimeDefinitions), parsed.output);
+    if (action === "capabilities") return await capabilities(Object.keys(runtimeDefinitions), parsed.output);
+    if (action === "targets") {
       const { targets } = await loadTargets();
       const records = Object.entries(targets).map(([runtime, target]) => ({ runtime, url: target.url }));
       if (parsed.output === "json") return printJson(records);
       for (const record of records) process.stdout.write(`${record.runtime.padEnd(15)} ${record.url}\n`);
       return;
     }
-    if (action === "target" && parsed.args[0] === "set") {
-      if (!parsed.args[1] || !parsed.args[2]) throw new Error("Use 'aw runtime target set <NAME> <URL>'.");
-      const record = { runtime: parsed.args[1], url: await setTarget(parsed.args[1], parsed.args[2]) };
+    throw new Error(`Unknown collection action '${action}'. Run 'aw runtimes --help'.`);
+  }
+
+  const [subject, ...rawArguments] = args;
+  if (!subject) throw new Error(`Command is required. Run 'aw ${owner} --help'.`);
+  const parsed = parseOutput(rawArguments);
+
+  if (subject === "launch") return await launch(owner);
+  if (subject === "status") return await status([owner], parsed.output);
+  if (subject === "capabilities") return await capabilities([owner], parsed.output);
+  if (subject === "target") {
+    const action = parsed.args[0];
+    if (action === "show") {
+      const { targets } = await loadTargets();
+      const record = { runtime: owner, url: targets[owner].url };
       if (parsed.output === "json") return printJson(record);
       process.stdout.write(`${record.runtime} ${record.url}\n`);
       return;
     }
-    if (action === "target" && parsed.args[0] === "reset") {
-      if (!parsed.args[1]) throw new Error("Use 'aw runtime target reset <NAME>'.");
-      const record = { runtime: parsed.args[1], url: await resetTarget(parsed.args[1]) };
+    if (action === "set") {
+      if (!parsed.args[1]) throw new Error(`Use 'aw ${owner} target set <URL>'.`);
+      const record = { runtime: owner, url: await setTarget(owner, parsed.args[1]) };
       if (parsed.output === "json") return printJson(record);
       process.stdout.write(`${record.runtime} ${record.url}\n`);
       return;
     }
-    if (action === "capabilities") {
-      const requested = parsed.args[0] ?? "all";
-      return await capabilities(requested === "all" ? Object.keys(runtimeDefinitions) : [requested], parsed.output);
+    if (action === "reset") {
+      const record = { runtime: owner, url: await resetTarget(owner) };
+      if (parsed.output === "json") return printJson(record);
+      process.stdout.write(`${record.runtime} ${record.url}\n`);
+      return;
     }
-    throw new Error(`Unknown runtime action '${action}'. Run 'aw runtime --help'.`);
+    throw new Error(`Target action is required. Run 'aw ${owner} target --help'.`);
   }
 
-  if (command === "link") {
-    const [action, ...rawArguments] = args;
-    if (!action) throw new Error("Link action is required. Run 'aw link --help'.");
-    const parsed = parseOutput(rawArguments);
-    if (action === "list") return await listLinks(parsed.output);
-    if (!new Set(["set", "clear", "test"]).has(action)) {
-      throw new Error(`Unknown link action '${action}'. Run 'aw link --help'.`);
+  if (subject === "link" && new Set(["ranch", "router"]).has(owner)) {
+    const [target, action] = parsed.args;
+    if (!action) throw new Error(`Use 'aw ${owner} link durable-data <show|set|clear|test>'.`);
+    if (!new Set(["show", "set", "clear", "test"]).has(action)) {
+      throw new Error(`Unknown link action '${action}'. Use show, set, clear, or test.`);
     }
-    return await link(action, parsed.args[0], parsed.args[1], parsed.output);
+    return await link(action, owner, target, parsed.output);
   }
 
-  if (command === "node") {
-    const [action, ...rawArguments] = args;
-    if (!action) throw new Error("Node action is required. Run 'aw node --help'.");
-    const parsed = parseOutput(rawArguments);
-    return await nodes(action, parsed.args, parsed.output);
+  if (owner === "ranch" && subject === "node") {
+    const [action, ...nodeArguments] = parsed.args;
+    if (!action) throw new Error("Node action is required. Run 'aw ranch node --help'.");
+    return await nodes(action, nodeArguments, parsed.output);
   }
 
-  const parsed = parseOutput(args);
-  return await prompt(parsed.args, parsed.output);
+  if (owner === "router" && subject === "prompt") {
+    return await prompt(parsed.args, parsed.output);
+  }
+
+  throw new Error(`'${subject}' is not owned by ${owner}. Run 'aw ${owner} --help' to see its commands.`);
 }
 
 main().catch((error) => {

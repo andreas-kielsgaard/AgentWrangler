@@ -34,10 +34,10 @@ test("CLI targets a runtime and reports its status and advertised capabilities",
     return { statusCode: 404, body: {} };
   });
   try {
-    await runCli(["runtime", "target", "set", "ranch", ranch.baseUrl], configurationPath);
-    assert.match((await runCli(["runtime", "status", "ranch"], configurationPath)).stdout, /ranch\s+reachable/);
-    assert.match((await runCli(["runtime", "capabilities", "ranch"], configurationPath)).stdout, /example\.operation/);
-    const structured = JSON.parse((await runCli(["runtime", "status", "ranch", "--output", "json"], configurationPath)).stdout);
+    await runCli(["ranch", "target", "set", ranch.baseUrl], configurationPath);
+    assert.match((await runCli(["ranch", "status"], configurationPath)).stdout, /ranch\s+reachable/);
+    assert.match((await runCli(["ranch", "capabilities"], configurationPath)).stdout, /example\.operation/);
+    const structured = JSON.parse((await runCli(["ranch", "status", "--output", "json"], configurationPath)).stdout);
     assert.deepEqual(structured, [{ runtime: "ranch", status: "reachable", url: ranch.baseUrl }]);
   } finally {
     await ranch.close();
@@ -59,11 +59,11 @@ test("CLI explicitly configures and tests a runtime link", async () => {
   });
   const data = await startTestServer(() => ({ body: {} }));
   try {
-    await runCli(["runtime", "target", "set", "ranch", source.baseUrl], configurationPath);
-    await runCli(["runtime", "target", "set", "durable-data", data.baseUrl], configurationPath);
-    assert.match((await runCli(["link", "set", "ranch", "durable-data", "--output", "json"], configurationPath)).stdout, /fixture/);
+    await runCli(["ranch", "target", "set", source.baseUrl], configurationPath);
+    await runCli(["durable-data", "target", "set", data.baseUrl], configurationPath);
+    assert.match((await runCli(["ranch", "link", "durable-data", "set", "--output", "json"], configurationPath)).stdout, /fixture/);
     assert.equal(source.requests[0].body.baseUrl, data.baseUrl);
-    assert.match((await runCli(["link", "test", "ranch", "durable-data", "--output", "json"], configurationPath)).stdout, /reachable/);
+    assert.match((await runCli(["ranch", "link", "durable-data", "test", "--output", "json"], configurationPath)).stdout, /reachable/);
   } finally {
     await Promise.all([source.close(), data.close()]);
     await removeTemporaryDirectory(directory);
@@ -80,10 +80,10 @@ test("CLI manages a node through Ranch and submits a prompt through Router", asy
     ? { body: { output: { text: `fixture: ${body.prompt}` } } }
     : { statusCode: 404, body: {} });
   try {
-    await runCli(["runtime", "target", "set", "ranch", ranch.baseUrl], configurationPath);
-    await runCli(["runtime", "target", "set", "router", router.baseUrl], configurationPath);
+    await runCli(["ranch", "target", "set", ranch.baseUrl], configurationPath);
+    await runCli(["router", "target", "set", router.baseUrl], configurationPath);
     assert.match((await runCli([
-      "node", "add", "--id", "node", "--name", "Local", "--url", "http://127.0.0.1:4110", "--output", "json",
+      "ranch", "node", "add", "--id", "node", "--name", "Local", "--url", "http://127.0.0.1:4110", "--output", "json",
     ], configurationPath)).stdout, /"id": "node"/);
     assert.deepEqual(ranch.requests[0].body, {
       name: "Local",
@@ -92,7 +92,7 @@ test("CLI manages a node through Ranch and submits a prompt through Router", asy
     });
 
     assert.match((await runCli([
-      "prompt", "send", "--connection", "node", "hello from cli",
+      "router", "prompt", "send", "--connection", "node", "hello from cli",
     ], configurationPath)).stdout, /fixture: hello from cli/);
     assert.deepEqual(router.requests[0].body, { connectionId: "node", prompt: "hello from cli" });
   } finally {
@@ -105,24 +105,24 @@ test("CLI grammar is discoverable and rejects removed legacy commands", async ()
   const directory = await makeTemporaryDirectory("agent-wrangler-cli-language-");
   const configurationPath = join(directory, "targets.json");
   try {
-    assert.match((await runCli(["--help"], configurationPath)).stdout, /Usage: aw <noun> <verb>/);
-    assert.match((await runCli(["node", "--help"], configurationPath)).stdout, /add \[options\]\s+Register a connection/);
-    assert.match((await runCli(["node", "add", "--help"], configurationPath)).stdout, /aw node add --name/);
-    const runtimeHelp = (await runCli(["runtime", "--help"], configurationPath)).stdout;
-    assert.match(runtimeHelp, /launch <NAME>\s+Start one runtime/);
+    assert.match((await runCli(["--help"], configurationPath)).stdout, /aw <RUNTIME> <COMMAND>/);
+    assert.match((await runCli(["ranch", "--help"], configurationPath)).stdout, /node <COMMAND>\s+Manage and observe/);
+    assert.match((await runCli(["ranch", "node", "--help"], configurationPath)).stdout, /add --name <NAME>/);
+    const runtimeHelp = (await runCli(["runtimes", "--help"], configurationPath)).stdout;
+    assert.match(runtimeHelp, /launch\s+Start all seven runtimes/);
     assert.match(runtimeHelp, /ranch, gallery, router, engine, farm, durable-data, execution-node/);
     assert.doesNotMatch(runtimeHelp, /<all\|runtime>/);
-    const launchHelp = (await runCli(["runtime", "launch", "--help"], configurationPath)).stdout;
-    assert.match(launchHelp, /aw runtime launch ranch/);
-    assert.doesNotMatch(launchHelp, /target set/);
+    const ranchHelp = (await runCli(["ranch", "--help"], configurationPath)).stdout;
+    assert.match(ranchHelp, /aw ranch <COMMAND>/);
+    assert.doesNotMatch(ranchHelp, /prompt send/);
     assert.equal((await runCli(["--version"], configurationPath)).stdout.trim(), "0.0.0");
-    await assert.rejects(runCli(["nodes", "list"], configurationPath), (error) => {
+    await assert.rejects(runCli(["node", "list"], configurationPath), (error) => {
       assert.notEqual(error.code, 0);
-      assert.match(error.stderr, /Unknown noun 'nodes'/);
+      assert.match(error.stderr, /Unknown runtime 'node'/);
       return true;
     });
-    await assert.rejects(runCli(["runtime", "launch", "runtime"], configurationPath), (error) => {
-      assert.match(error.stderr, /Choose one of: ranch, gallery, router, engine, farm, durable-data, execution-node/);
+    await assert.rejects(runCli(["ranch", "prompt", "send"], configurationPath), (error) => {
+      assert.match(error.stderr, /'prompt' is not owned by ranch/);
       return true;
     });
   } finally {

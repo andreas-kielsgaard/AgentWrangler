@@ -17,14 +17,14 @@ Run all processes with `launch-all.bat`. It opens one maximized Windows Terminal
 The launcher does not connect the runtimes. Use the provisional repository CLI to inspect and assemble the current path:
 
 ```text
-aw runtime status
-aw runtime capabilities ranch
-aw runtime capabilities durable-data
-aw link set ranch durable-data
-aw link set router durable-data
-aw node add --name "Local Codex" --url http://127.0.0.1:4110
-aw node observe <id>
-aw prompt send --connection <id> "Respond with hello"
+aw runtimes status
+aw ranch capabilities
+aw durable-data capabilities
+aw ranch link durable-data set
+aw router link durable-data set
+aw ranch node add --name "Local Codex" --url http://127.0.0.1:4110
+aw ranch node observe <id>
+aw router prompt send --connection <id> "Respond with hello"
 ```
 
 The CLI package exposes the working `aw` executable; from the repository use `npm exec aw -- <command>`. CLI target addresses are presentation configuration; Ranch and Router links are separate, session-local runtime configuration.

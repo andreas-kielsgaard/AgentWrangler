@@ -2,7 +2,8 @@
 
 The provisional `aw` CLI currently demonstrates:
 
-- a consistent `noun verb` grammar across runtime, link, node, and prompt concepts;
+- runtime-owned command families that expose each capability beneath the runtime receiving the request;
+- collection-wide process and inspection commands under `aw runtimes`;
 - layered help, familiar long options, actionable errors, and a version command;
 - separate concise text and structured JSON output for human and programmatic use;
 - launching one runtime or the existing process-only all-runtime launcher;
