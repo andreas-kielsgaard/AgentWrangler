@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -8,8 +8,10 @@ import { runtimeCapabilitiesHttp } from "@agent-wrangler/contracts/runtime-capab
 import { runtimeLinksHttp } from "@agent-wrangler/contracts/runtime-links";
 import {
   makeTemporaryDirectory,
+  freePort,
   removeTemporaryDirectory,
   startTestServer,
+  waitForJson,
 } from "@agent-wrangler/test-support";
 
 const execute = promisify(execFile);
@@ -57,6 +59,23 @@ test("CLI targets a runtime and reports its status and advertised capabilities",
   } finally {
     await ranch.close();
     await removeTemporaryDirectory(directory);
+  }
+});
+
+test("CLI launches a runtime package on Windows", { skip: process.platform !== "win32" }, async () => {
+  const port = await freePort();
+  const child = spawn(process.execPath, [cliPath, "ranch", "launch"], {
+    env: { ...process.env, RANCH_PORT: String(port) },
+    stdio: ["ignore", "pipe", "pipe"],
+    windowsHide: true,
+  });
+  try {
+    const identity = await waitForJson(`http://127.0.0.1:${port}/identity`);
+    assert.equal(identity.runtime.id, "ranch");
+  } finally {
+    if (child.exitCode === null) {
+      await execute("taskkill.exe", ["/pid", String(child.pid), "/T", "/F"]).catch(() => {});
+    }
   }
 });
 

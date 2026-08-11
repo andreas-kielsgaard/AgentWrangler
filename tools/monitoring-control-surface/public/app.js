@@ -184,6 +184,7 @@ function administratorMarkup(context) {
   const known = new Set(context.knownEndpoints);
   const farms = state.discovered.filter((entry) => entry.owner === "farm");
   const durable = state.discovered.filter((entry) => entry.owner === "durable-data" && known.has(entry.baseUrl));
+  const farmReady = Boolean(context.operatingFarm && owned.has(context.operatingFarm));
   return `
     <div class="actor-callout"><strong>Actor:</strong> a collection administrator operating through an explicitly owned Farm. Every downstream endpoint must be selected as known; operations then cross the network through Farm.</div>
     <section class="panel">
@@ -203,18 +204,18 @@ function administratorMarkup(context) {
       <h3>1. Connect Farm to Durable Data</h3>
       <div class="inline-actions">
         <label>Known Durable Data<select id="admin-durable">${optionMarkup(durable, "Select a known Durable Data endpoint")}</select></label>
-        <button id="connect-durable" type="button">Connect through Farm</button>
+        <button id="connect-durable" type="button" ${farmReady && durable.length ? "" : "disabled"}>Connect through Farm</button>
       </div>
     </section>
     <section class="panel">
       <h3>2. Register collection runtimes</h3>
       <div class="registration-list">${["ranch", "router", "gallery", "engine"].map((owner) => {
         const choices = state.discovered.filter((entry) => entry.owner === owner && known.has(entry.baseUrl));
-        return `<div class="registration-row"><strong>${owner}</strong><label>Known endpoint<select data-register-select="${owner}">${optionMarkup(choices)}</select></label><button type="button" data-register-runtime="${owner}">Register</button></div>`;
+        return `<div class="registration-row"><strong>${owner}</strong><label>Known endpoint<select data-register-select="${owner}">${optionMarkup(choices)}</select></label><button type="button" data-register-runtime="${owner}" ${farmReady && choices.length ? "" : "disabled"}>Register</button></div>`;
       }).join("")}</div>
     </section>
     <section class="panel">
-      <div class="inline-actions"><h3>3. Read directory through Farm</h3><button id="list-directory" type="button">List registered runtimes</button></div>
+      <div class="inline-actions"><h3>3. Read directory through Farm</h3><button id="list-directory" type="button" ${farmReady ? "" : "disabled"}>List registered runtimes</button></div>
       <pre id="admin-result" class="result">No administrator operation performed.</pre>
     </section>`;
 }
@@ -304,4 +305,3 @@ state.surface = await api("/api/surface");
 await Promise.all([refreshDiscovery(), loadContext("runtime-operator"), loadContext("collection-administrator")]);
 renderMonitor();
 setInterval(refreshOperatorProcess, 1_000);
-

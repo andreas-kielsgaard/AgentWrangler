@@ -198,7 +198,11 @@ async function launch(name) {
     return;
   }
   const runtime = requireRuntime(name);
-  await run(process.platform === "win32" ? "npm.cmd" : "npm", ["start", "--workspace", runtime.workspace]);
+  if (process.platform === "win32") {
+    await run(process.env.ComSpec ?? "cmd.exe", ["/d", "/s", "/c", "npm.cmd", "start", "--workspace", runtime.workspace]);
+    return;
+  }
+  await run("npm", ["start", "--workspace", runtime.workspace]);
 }
 
 function run(command, args) {
